@@ -1,5 +1,6 @@
 package com.shawady.vault.core
 
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
@@ -64,15 +65,21 @@ class BiometricUnlock(private val activity: FragmentActivity, private val alias:
     // ---- internals ----
 
     private fun createKey() {
-        val spec = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+        val builder = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setKeySize(256)
             .setUserAuthenticationRequired(true)
-            .setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG) // auth on EVERY use
             .setInvalidatedByBiometricEnrollment(true)
-            .build()
-        KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").apply { init(spec) }.generateKey()
+        // Authentication is required on EVERY use of the key (CryptoObject-bound).
+        if (Build.VERSION.SDK_INT >= 30) {
+            builder.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+        } else {
+            @Suppress("DEPRECATION")
+            builder.setUserAuthenticationValidityDurationSeconds(-1) // Android 10: biometric on every use
+        }
+        KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+            .apply { init(builder.build()) }.generateKey()
     }
 
     private fun key(): SecretKey = ks.getKey(alias, null) as SecretKey

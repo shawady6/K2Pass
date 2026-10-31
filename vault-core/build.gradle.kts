@@ -6,7 +6,7 @@ plugins {
 android {
     namespace = "com.shawady.vault.core"
     compileSdk = 35
-    defaultConfig { minSdk = 30 }   // biometric key auth parameters + autofill inline need 30+
+    defaultConfig { minSdk = 29 }   // Android 10+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
