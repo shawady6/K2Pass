@@ -1,6 +1,5 @@
 package com.shawady.vault.app
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -15,8 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -35,14 +33,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-@Composable
-fun AppTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(),
-        content = content,
-    )
-}
 
 @Composable
 fun PasswordField(label: String, value: String, enabled: Boolean = true, onChange: (String) -> Unit) {
@@ -129,17 +119,22 @@ fun UnlockScreen(
     }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("فتح الخزنة", style = MaterialTheme.typography.headlineSmall)
+        LogoMark(72.dp)
+        Text("K2Pass", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        Text("افتح الخزنة", color = MaterialTheme.colorScheme.onSurfaceVariant)
         PasswordField("الماستر باسورد", pw, !busy) { pw = it }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = { submit() }, enabled = !busy && pw.isNotEmpty()) {
+        Button(onClick = { submit() }, enabled = !busy && pw.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
             Text(if (busy) "جاري الفتح..." else "فتح")
         }
         if (bioOk) {
-            OutlinedButton(onClick = { tryBio() }, enabled = !busy) { Text("بصمة / وجه") }
+            OutlinedButton(onClick = { tryBio() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                Text("بصمة / وجه")
+            }
         }
         extra()
     }

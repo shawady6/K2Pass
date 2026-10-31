@@ -1,14 +1,13 @@
 package com.shawady.vault.app
 
-import android.app.assist.AssistStructure
 import android.content.Intent
 import android.os.Bundle
+import android.service.autofill.Dataset
+import android.service.autofill.FillResponse
 import android.view.WindowManager
 import android.view.autofill.AutofillId
 import android.view.autofill.AutofillManager
 import android.view.autofill.AutofillValue
-import android.service.autofill.Dataset
-import android.service.autofill.FillResponse
 import android.widget.RemoteViews
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
@@ -17,28 +16,51 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
+import com.shawady.vault.core.Entry
 import com.shawady.vault.core.VaultCrypto
 import com.shawady.vault.core.VaultData
 
 /**
- * Shown by the system when the user taps the autofill suggestion. Always requires the user
- * to authenticate (biometrics, or master password) before any credential is returned.
- * The unlocked key is wiped right after the datasets are built; this does NOT unlock the app.
+ * Shown by the system when the user taps the autofill suggestion. Always requires the user to
+ * authenticate (biometrics, or master password) before any credential is returned.
+ *  - Matching accounts found  -> they are returned for filling.
+ *  - No account for this site/app -> an "add account" page opens, prefilled from the page
+ *    (site name, url, any typed username, a generated password on sign-up forms). Saving it
+ *    stores the account and fills the form with it.
+ * The vault key is wiped as soon as the response is built; this does NOT unlock the app itself.
  */
 class AuthActivity : FragmentActivity() {
+
+    private class Unlocked(val file: VaultCrypto.VaultFile, val key: ByteArray, val data: VaultData)
+
+    private var unlocked by mutableStateOf<Unlocked?>(null)
+    private val store by lazy { VaultStore(applicationContext) }
+
+    private var userId: AutofillId? = null
+    private var passId: AutofillId? = null
+    private var confirmId: AutofillId? = null
+    private var domain: String? = null
+    private var pkg: String? = null
+    private var userText: String? = null
+    private var registration = false
 
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
-        val userId = intent.getParcelableExtra<AutofillId>(VaultAutofillService.EXTRA_USER_ID)
-        val passId = intent.getParcelableExtra<AutofillId>(VaultAutofillService.EXTRA_PASS_ID)
-        val domain = intent.getStringExtra(VaultAutofillService.EXTRA_DOMAIN)
-        val pkg = intent.getStringExtra(VaultAutofillService.EXTRA_PKG)
-        val store = VaultStore(applicationContext)
+        userId = intent.getParcelableExtra<AutofillId>(VaultAutofillService.EXTRA_USER_ID)
+        passId = intent.getParcelableExtra<AutofillId>(VaultAutofillService.EXTRA_PASS_ID)
+        confirmId = intent.getParcelableExtra<AutofillId>(VaultAutofillService.EXTRA_CONFIRM_ID)
+        domain = intent.getStringExtra(VaultAutofillService.EXTRA_DOMAIN)
+        pkg = intent.getStringExtra(VaultAutofillService.EXTRA_PKG)
+        userText = intent.getStringExtra(VaultAutofillService.EXTRA_USER_TEXT)
+        registration = intent.getBooleanExtra(VaultAutofillService.EXTRA_REG, false)
 
         if (!store.exists() || (userId == null && passId == null)) {
             cancel()
@@ -48,50 +70,99 @@ class AuthActivity : FragmentActivity() {
         setContent {
             AppTheme {
                 Box(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
-                    UnlockScreen(
-                        activity = this@AuthActivity,
-                        store = store,
-                        onUnlocked = { f, k -> finishWithMatches(f, k, userId, passId, domain, pkg) },
-                    ) {
-                        OutlinedButton(onClick = { cancel() }) { Text("إلغاء") }
+                    val u = unlocked
+                    if (u == null) {
+                        UnlockScreen(
+                            activity = this@AuthActivity,
+                            store = store,
+                            onUnlocked = { f, k -> onVaultUnlocked(f, k) },
+                        ) {
+                            OutlinedButton(onClick = { cancel() }) { Text("إلغاء") }
+                        }
+                    } else {
+                        EntryEditor(
+                            heading = if (registration) "حساب جديد على الموقع ده" else "مفيش حساب محفوظ هنا — أضف حساب",
+                            orig = null,
+                            prefill = buildPrefill(),
+                            autoGenerate = registration,
+                            saveLabel = "حفظ وتعبئة",
+                            onSave = { e -> saveAndFill(u, e) },
+                            onCancel = { cancel() },
+                        )
                     }
                 }
             }
         }
     }
 
-    private fun finishWithMatches(
-        f: VaultCrypto.VaultFile,
-        k: ByteArray,
-        userId: AutofillId?,
-        passId: AutofillId?,
-        domain: String?,
-        pkg: String?,
-    ) {
+    override fun onDestroy() {
+        unlocked?.key?.fill(0)
+        unlocked = null
+        super.onDestroy()
+    }
+
+    private fun onVaultUnlocked(f: VaultCrypto.VaultFile, k: ByteArray) {
         val data = try {
             VaultData.fromBytes(VaultCrypto.readPayload(f, k))
         } catch (e: Exception) {
-            null
-        } finally {
             k.fill(0)
-        }
-        if (data == null) {
             cancel()
             return
         }
         val matches = data.entries.filter { !it.deleted && Matcher.matches(it, domain, pkg) }
-        if (matches.isEmpty()) {
+        if (matches.isNotEmpty()) {
+            k.fill(0)
+            respond(matches)
+        } else {
+            unlocked = Unlocked(f, k, data)
+        }
+    }
+
+    private fun saveAndFill(u: Unlocked, entry: Entry) {
+        try {
+            val newData = VaultData(u.data.entries + entry)
+            val nf = VaultCrypto.writePayload(u.file, u.key, newData.toBytes())
+            store.save(nf)
+            Session.reloadIfOpen(nf)
+        } catch (e: Exception) {
             cancel()
             return
+        } finally {
+            u.key.fill(0)
         }
+        unlocked = null
+        respond(listOf(entry))
+    }
+
+    private fun buildPrefill(): Entry {
+        val site = domain?.takeIf { it.isNotBlank() }?.let { baseDomain(it) }
+        val title = if (site != null) siteName(site) else appLabel(pkg)
+        val url = if (site != null) "https://$site" else "androidapp://${pkg.orEmpty()}"
+        return Entry(
+            id = "", title = title, username = userText.orEmpty(), password = "",
+            url = url, notes = "", totpSecret = null, updatedAt = 0L,
+        )
+    }
+
+    private fun appLabel(p: String?): String {
+        if (p == null) return ""
+        return try {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(p, 0)).toString()
+        } catch (e: Exception) {
+            p.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    private fun respond(list: List<Entry>) {
         val resp = FillResponse.Builder()
-        for (e in matches) {
+        for (e in list) {
             val pres = RemoteViews(packageName, R.layout.autofill_item)
             pres.setTextViewText(R.id.text, e.title.ifBlank { e.username })
             @Suppress("DEPRECATION")
             val ds = Dataset.Builder(pres)
-            if (userId != null) ds.setValue(userId, AutofillValue.forText(e.username))
-            if (passId != null) ds.setValue(passId, AutofillValue.forText(e.password))
+            userId?.let { ds.setValue(it, AutofillValue.forText(e.username)) }
+            passId?.let { ds.setValue(it, AutofillValue.forText(e.password)) }
+            confirmId?.let { ds.setValue(it, AutofillValue.forText(e.password)) }
             resp.addDataset(ds.build())
         }
         setResult(RESULT_OK, Intent().putExtra(AutofillManager.EXTRA_AUTHENTICATION_RESULT, resp.build()))
@@ -101,52 +172,5 @@ class AuthActivity : FragmentActivity() {
     private fun cancel() {
         setResult(RESULT_CANCELED)
         finish()
-    }
-}
-
-/** Finds username/password fields and the web domain / package from the screen structure. */
-object StructureParser {
-    class Parsed {
-        var userId: AutofillId? = null
-        var passId: AutofillId? = null
-        var domain: String? = null
-        var pkg: String? = null
-        var lastTextId: AutofillId? = null
-    }
-
-    fun parse(s: AssistStructure): Parsed {
-        val p = Parsed()
-        p.pkg = s.activityComponent?.packageName
-        for (i in 0 until s.windowNodeCount) walk(s.getWindowNodeAt(i).rootViewNode, p)
-        return p
-    }
-
-    private fun walk(n: AssistStructure.ViewNode, p: Parsed) {
-        val domain = n.webDomain
-        if (!domain.isNullOrBlank() && p.domain == null) {
-            // Never fill on plain-http pages.
-            p.domain = if (n.webScheme == "http") "" else domain
-        }
-        val id = n.autofillId
-        if (id != null && n.autofillType == android.view.View.AUTOFILL_TYPE_TEXT) {
-            val hints = n.autofillHints?.toList().orEmpty()
-            val variation = n.inputType and android.text.InputType.TYPE_MASK_VARIATION
-            val isText = (n.inputType and android.text.InputType.TYPE_MASK_CLASS) == android.text.InputType.TYPE_CLASS_TEXT
-            val isPass = android.view.View.AUTOFILL_HINT_PASSWORD in hints ||
-                (isText && (variation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                    variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
-                    variation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD))
-            val isUser = android.view.View.AUTOFILL_HINT_USERNAME in hints ||
-                android.view.View.AUTOFILL_HINT_EMAIL_ADDRESS in hints
-            if (isPass) {
-                if (p.passId == null) p.passId = id
-                if (p.userId == null) p.userId = p.lastTextId
-            } else if (isUser) {
-                if (p.userId == null) p.userId = id
-            } else if (isText) {
-                p.lastTextId = id
-            }
-        }
-        for (c in 0 until n.childCount) walk(n.getChildAt(c), p)
     }
 }

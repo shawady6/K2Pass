@@ -45,6 +45,20 @@ fun copySensitive(ctx: Context, label: String, text: String) {
     }, 20_000)
 }
 
+private val secondLevel = setOf("co", "com", "org", "net", "gov", "edu", "ac")
+
+/** "accounts.google.com" -> "google.com", "mail.bbc.co.uk" -> "bbc.co.uk" (approximation, no public-suffix list). */
+fun baseDomain(host: String): String {
+    val parts = host.lowercase().removePrefix("www.").split('.').filter { it.isNotEmpty() }
+    if (parts.size <= 2) return parts.joinToString(".")
+    val n = if (parts[parts.size - 2] in secondLevel && parts.last().length == 2) 3 else 2
+    return parts.takeLast(n).joinToString(".")
+}
+
+/** "google.com" -> "Google". */
+fun siteName(base: String): String =
+    base.substringBefore('.').replaceFirstChar { it.uppercase() }
+
 /**
  * Autofill matching. Web: the page host must equal the entry host or be a subdomain of it.
  * Apps: entry url must be "androidapp://<package>". Plain http pages are never matched.

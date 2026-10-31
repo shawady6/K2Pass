@@ -25,6 +25,17 @@ object Session {
 
     fun setFile(f: VaultCrypto.VaultFile) { file = f }
 
+    /** Another screen (autofill) wrote a new version to disk; pick it up if the vault is open. */
+    fun reloadIfOpen(f: VaultCrypto.VaultFile) {
+        val k = key ?: return
+        try {
+            data = VaultData.fromBytes(VaultCrypto.readPayload(f, k))
+            file = f
+        } catch (e: Exception) {
+            lock()
+        }
+    }
+
     fun persist(store: VaultStore, newData: VaultData) {
         val f = file ?: return
         val k = key ?: return
