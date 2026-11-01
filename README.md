@@ -1,30 +1,44 @@
 # K2Pass
 
-مدير كلمات مرور أوفلاين لأندرويد (Kotlin + Compose). **نسخة تجريبية 0.1 — مش متراجعة أمنياً.**
+A personal, **offline-first** password manager and digital vault. Android app today (Kotlin + Jetpack Compose); Windows app and browser extension are planned.
+The app has **no INTERNET permission**: it cannot talk to any network. Sync between devices is manual (encrypted file export/import with a deterministic merge).
 
-## بناء الـ APK (من غير ما تثبّت أي حاجة)
-1. اعمل repo **خاص** على GitHub وارفع المجلد ده كله (فيه `.github/workflows/build-apk.yml`).
-2. من تبويب **Actions** → آخر تشغيل لـ *Build APK* → نزّل الـ artifact `ShawadyVault-debug-apk`.
-3. فك الـ zip وثبّت `app-debug.apk` على الموبايل (اسمح بالتثبيت من مصدر غير معروف).
+> Status: **v0.3 debug build, personal use, not security-reviewed, no automated tests.** Use dummy data until you have tested it yourself.
+> The single source of truth for decisions and status is in [`docs/`](docs/) — start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) and [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md).
 
-لو البناء فشل، افتح لوج الخطوة *Build debug APK* وابعتلي الأخطاء وأصلحها.
+## What it does today (v0.3)
+- Vault with 4 item types: login, secure note, card, identity. Favorites, 9 fixed categories, search, type filters, trash (30 days), per-item history (20 versions).
+- Master password (Argon2id + AES-256-GCM envelope encryption), biometric unlock (Android Keystore), PIN unlock, auto-lock, clipboard auto-clear, screenshot blocking.
+- Android Autofill service: login/sign-up form detection, matching by domain / app package, "save to K2Pass?" and "update password?" prompts, per-site block list, TOTP code copied after fill.
+- TOTP codes (RFC 6238) with countdown. Password generator. Vault health report (weak / reused / old).
+- Import: Bitwarden JSON (unencrypted), CSV from Chrome / Bitwarden / KeePassXC / LastPass. Export: encrypted vault file; plain CSV (after master-password confirmation).
+- Manual sync: import & merge another device's encrypted vault file.
 
-## أول استخدام
-1. أنشئ الخزنة واكتب ماستر باسورد (10 حروف+). **مفيش استرجاع له.**
-2. إعدادات → فعّل **فتح بالبصمة** (محتاج بصمة/وجه Strong مسجّل في الجهاز).
-3. إعدادات → **تفعيل الملء التلقائي** واختار K2Pass.
-4. في كل عنصر: الرابط `https://site.com` للمواقع، أو `androidapp://com.package` للتطبيقات.
+## Not built yet (see roadmap)
+Windows app, browser extension, IT-specific item types (server / router / switch / firewall / device), Home/Vault/Tools/Settings navigation, custom folders, compromised-password check, encrypted cloud / self-hosted sync, passkeys, attachments, automated tests, release signing.
 
-## المزامنة اليدوية بين جهازين
-- الجهاز التاني: "عندي ملف خزنة" ← اختار الملف المصدّر ← افتحه بنفس الماستر.
-- بعد كده في أي وقت: جهاز A **تصدير** ← جهاز B **استيراد ودمج** ← B **تصدير** ← A **استيراد ودمج**.
-- الدمج: الأحدث يكسب، والنسخة الخاسرة تتحفظ في History، والحذف نهائي.
+## Platforms
+| Platform | State |
+|---|---|
+| Android 10+ (minSdk 29, target 35) | Implemented (v0.3, needs device testing) |
+| Windows | Planned |
+| Browser extension | Planned |
 
-## الأمان باختصار
-- Argon2id (64MiB, t=3) + AES-256-GCM، مفتاح الخزنة بيتغلّف بالماستر، والبصمة عبر Android Keystore (CryptoObject).
-- الملء التلقائي بيطلب بصمة/ماستر في كل مرة، ومبيملاش على http، ومبيطابقش غير الدومين/الـ package.
-- مفيش صلاحية INTERNET، `allowBackup=false`، `FLAG_SECURE`، الكليبورد بيتمسح بعد 20 ثانية، قفل تلقائي بعد دقيقة في الخلفية أو عند إطفاء الشاشة.
-- حدود معروفة: الباسورد بيعدي على String في واجهة Compose (مش ممكن تصفيره)، والتطابق بالدومين مش بيستخدم Public Suffix List.
+## Build
+No local toolchain is required. Push to GitHub; the workflow `.github/workflows/build-apk.yml` runs `gradle :app:assembleDebug`, uploads the artifact `K2Pass-debug-apk`, and on `main` publishes `K2Pass-debug.apk` to the pre-release tag **`latest`**.
 
-## لسه ناقص
-TOTP، Passkeys، حفظ باسورد جديد من الملء التلقائي، تطبيق ويندوز + إكستنشن، اختبارات، أيقونة، توقيع Release.
+Local build (needs JDK 17, Android SDK 35, Gradle 8.11.1): `gradle :app:assembleDebug`.
+
+Modules: `app/` (UI, autofill, storage, import/export) and `vault-core/` (crypto, models, merge, TOTP, biometric wrapper).
+
+## First use
+1. Create the vault with a master password (10+ characters). **There is no recovery.**
+2. Settings → enable biometric unlock and/or PIN.
+3. Settings → enable K2Pass as the Autofill service.
+4. For each login: URL `https://site.com` for websites, or `androidapp://com.package` for apps.
+
+## Manual sync between two devices
+Device A **export** → Device B **import & merge** → B **export** → A **import & merge**. Newest edit wins; the losing version is kept in history; deletions propagate (tombstones).
+
+## Roadmap
+See [`docs/ROADMAP.md`](docs/ROADMAP.md). Changes: [`docs/CHANGELOG.md`](docs/CHANGELOG.md). Security design and known gaps: [`docs/SECURITY_ARCHITECTURE.md`](docs/SECURITY_ARCHITECTURE.md).

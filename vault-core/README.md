@@ -1,30 +1,13 @@
 # vault-core
 
-نواة خزنة كلمات المرور (Kotlin / Android). **مش مختبرة ولا متراجعة أمنياً — متحطش فيها باسوردات حقيقية قبل المراجعة.**
+Crypto, data model, merge and TOTP for K2Pass (Kotlin / Android library). **No automated tests yet and no external review — do not rely on it for real secrets until Phase 1–2 of `docs/ROADMAP.md` are done.**
 
-## الملفات
-| ملف | وظيفته |
+| File | Purpose |
 |---|---|
-| `VaultCrypto.kt` | ماستر باسورد → Argon2id → KEK يفك مفتاح الخزنة (AES-256-GCM). تغيير الماستر بيعيد تغليف المفتاح بس. |
-| `VaultModels.kt` | `Entry` / `VaultData` + JSON. الحذف بعلامة (tombstone). |
-| `VaultMerge.kt` | دمج المزامنة اليدوية: الأحدث يكسب، والخسران يتحفظ في History. نفس النتيجة على الجهازين. |
-| `BiometricUnlock.kt` | مفتاح Keystore مربوط ببصمة/وجه Strong، بيتبطل لو البصمات اتغيرت. |
+| `VaultCrypto.kt` | Master password → Argon2id → KEK; wraps a random vault key; AES-256-GCM payload; header is AAD. |
+| `VaultModels.kt` | `Entry` / `VaultData` + JSON (types login/note/card/identity, favorites, trash, history). |
+| `VaultMerge.kt` | Manual-sync merge: newest wins, loser kept in history, tombstones, deterministic. |
+| `Totp.kt` | RFC 6238 TOTP (SHA1/256/512, otpauth://). |
+| `BiometricUnlock.kt` | Keystore key bound to strong biometrics (API 29+). |
 
-## قرارات التصميم
-- الماستر باسورد هو الجذر؛ البصمة طبقة راحة فوقه (تطلب الماستر بعد إعادة التشغيل / محاولات فاشلة / مهلة — لسه محتاجة تتكتب في الـ UI).
-- الـ header (نسخة + إعدادات KDF + salt) داخل الـ AAD عشان محدش يضعّف إعدادات الـ KDF.
-- كل حفظ بيعمل IV جديد. كل الـ arrays الحساسة بتتصفّر بعد الاستخدام (على قد ما JVM يسمح).
-- مفيش أي صلاحية INTERNET في التطبيق الأساسي؛ المزامنة هتبقى Wi-Fi مؤقتة بزرار أو ملف مشفر.
-
-## لسه ناقص (بالترتيب)
-1. شاشات: إنشاء خزنة، قفل/فتح، قائمة، إضافة/تعديل، مولّد باسوردات.
-2. `AutofillService` (تحقق من الدومين/الـ package، وبصمة قبل الملء) + `FLAG_SECURE` + مسح الكليبورد.
-3. قفل تلقائي ومهلة، وحد محاولات فاشلة.
-4. مزامنة: تصدير/استيراد ملف مشفر، وبعدين سيرفر Wi-Fi مؤقت على الويندوز مع QR.
-5. اختبارات: وحدة للدمج (commutative/idempotent) + اختبار أجهزة للتشفير.
-6. تطبيق ويندوز + إكستنشن (Native Messaging) بنفس صيغة الملف.
-
-## قبل الاستخدام الفعلي
-- قيس زمن Argon2id على موبايلك الأضعف (استهدف 0.5–1 ثانية) وعدّل `KdfParams`.
-- راجع الكود مع حد تاني، وافحص Android lint/dependency versions.
-- خلّي `allowBackup="false"` في الـ Manifest.
+Design, status and gaps: `../docs/SECURITY_ARCHITECTURE.md`, `../docs/FEATURE_MATRIX.md`.
