@@ -35,40 +35,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
-/** K2Pass identity: deep navy + glacier teal (the K2 peak guarding a keyhole). */
+/** K2Pass visual system: midnight navy, electric violet, royal blue and ice cyan. */
 private val DarkScheme = darkColorScheme(
-    primary = Color(0xFF2DD4BF),
-    onPrimary = Color(0xFF042F2A),
-    primaryContainer = Color(0xFF134E48),
-    onPrimaryContainer = Color(0xFFCCFBF1),
-    secondary = Color(0xFF7C9CFF),
-    onSecondary = Color(0xFF0B1B4A),
-    background = Color(0xFF0B1220),
-    onBackground = Color(0xFFE6EAF2),
-    surface = Color(0xFF111A2E),
-    onSurface = Color(0xFFE6EAF2),
-    surfaceVariant = Color(0xFF1B2640),
-    onSurfaceVariant = Color(0xFFA9B4CC),
-    outline = Color(0xFF3A4766),
-    error = Color(0xFFFF6B6B),
+    primary = Color(0xFF9B8CFF),
+    onPrimary = Color(0xFF17102F),
+    primaryContainer = Color(0xFF34276F),
+    onPrimaryContainer = Color(0xFFE9E5FF),
+    secondary = Color(0xFF55CFFF),
+    onSecondary = Color(0xFF062536),
+    background = Color(0xFF090D1C),
+    onBackground = Color(0xFFF1F2FA),
+    surface = Color(0xFF12182B),
+    onSurface = Color(0xFFF1F2FA),
+    surfaceVariant = Color(0xFF202943),
+    onSurfaceVariant = Color(0xFFB0B9D0),
+    outline = Color(0xFF3B4564),
+    error = Color(0xFFFF727F),
 )
 
 private val LightScheme = lightColorScheme(
-    primary = Color(0xFF0F766E),
+    primary = Color(0xFF6553D9),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFCCFBF1),
-    onPrimaryContainer = Color(0xFF042F2A),
-    secondary = Color(0xFF3B5BDB),
-    background = Color(0xFFF6F8FC),
-    onBackground = Color(0xFF0B1220),
+    primaryContainer = Color(0xFFE8E4FF),
+    onPrimaryContainer = Color(0xFF21165C),
+    secondary = Color(0xFF087FA8),
+    background = Color(0xFFF6F7FC),
+    onBackground = Color(0xFF101426),
     surface = Color.White,
-    onSurface = Color(0xFF0B1220),
-    surfaceVariant = Color(0xFFE8EDF6),
-    onSurfaceVariant = Color(0xFF4A5670),
-    outline = Color(0xFFB8C2D6),
-    error = Color(0xFFD92D20),
+    onSurface = Color(0xFF101426),
+    surfaceVariant = Color(0xFFEAECF5),
+    onSurfaceVariant = Color(0xFF515B75),
+    outline = Color(0xFFBEC4D8),
+    error = Color(0xFFC62842),
 )
 
 private val baseTypography = Typography()
@@ -79,9 +78,9 @@ private val K2Typography = baseTypography.copy(
 )
 
 private val K2Shapes = Shapes(
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(28.dp),
 )
 
 @Composable
@@ -91,7 +90,6 @@ fun AppTheme(content: @Composable () -> Unit) {
         typography = K2Typography,
         shapes = K2Shapes,
     ) {
-        // The UI is Arabic, so the layout is always right-to-left regardless of the device language.
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
         }
@@ -104,7 +102,7 @@ fun LogoMark(size: Dp = 64.dp) {
         Modifier
             .size(size)
             .clip(RoundedCornerShape(size * 0.26f))
-            .background(Color(0xFF0B1B2D)),
+            .background(Color(0xFF10152B)),
         contentAlignment = Alignment.Center,
     ) {
         Image(
@@ -116,7 +114,7 @@ fun LogoMark(size: Dp = 64.dp) {
 }
 
 private val avatarColors = listOf(
-    0xFF0EA5A4, 0xFF6366F1, 0xFFEC4899, 0xFFF59E0B, 0xFF10B981, 0xFF3B82F6, 0xFF8B5CF6, 0xFFEF4444,
+    0xFF6553D9, 0xFF2878E8, 0xFF0B9FC2, 0xFF9A65D8, 0xFF257C9B, 0xFF5968C9, 0xFF8B55B8, 0xFF3D83B8,
 )
 
 @Composable
@@ -127,15 +125,14 @@ fun Avatar(name: String, size: Dp = 44.dp) {
     }
 }
 
-/** A titled card used to group related controls. */
 @Composable
 fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             content()
         }
