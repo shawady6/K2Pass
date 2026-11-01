@@ -512,18 +512,30 @@ class MainActivity : FragmentActivity() {
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LogoMark(44.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                        Text(
-                            "${active.size} عنصر", style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LogoMark(52.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                            Text("مساحة أسرارك في أمان", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "${active.size} عنصر محفوظ", style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.secondary,
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            TextButton(onClick = { screen = Screen.Prefs }) { Text("الإعدادات") }
+                            TextButton(onClick = { lockNow() }) { Text("قفل الخزنة") }
+                        }
                     }
-                    TextButton(onClick = { screen = Screen.Prefs }) { Text("إعدادات") }
-                    TextButton(onClick = { lockNow() }) { Text("🔒 قفل") }
                 }
                 OutlinedTextField(
                     value = q, onValueChange = { q = it },
@@ -588,10 +600,11 @@ class MainActivity : FragmentActivity() {
         val ctx = LocalContext.current
         Card(
             Modifier.fillMaxWidth().clickable { if (inTrash) trashTarget = e else screen = Screen.Edit(e) },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
-            Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(e.title)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
