@@ -35,40 +35,46 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
-/** K2Pass identity: deep navy + glacier teal (the K2 peak guarding a keyhole). */
+/** K2Pass identity: midnight navy, electric blue and orbit violet. */
 private val DarkScheme = darkColorScheme(
-    primary = Color(0xFF2DD4BF),
-    onPrimary = Color(0xFF042F2A),
-    primaryContainer = Color(0xFF134E48),
-    onPrimaryContainer = Color(0xFFCCFBF1),
-    secondary = Color(0xFF7C9CFF),
-    onSecondary = Color(0xFF0B1B4A),
-    background = Color(0xFF0B1220),
-    onBackground = Color(0xFFE6EAF2),
-    surface = Color(0xFF111A2E),
-    onSurface = Color(0xFFE6EAF2),
-    surfaceVariant = Color(0xFF1B2640),
-    onSurfaceVariant = Color(0xFFA9B4CC),
-    outline = Color(0xFF3A4766),
-    error = Color(0xFFFF6B6B),
+    primary = Color(0xFF38CFFF),
+    onPrimary = Color(0xFF001923),
+    primaryContainer = Color(0xFF123B68),
+    onPrimaryContainer = Color(0xFFD9F5FF),
+    secondary = Color(0xFFB56BFF),
+    onSecondary = Color(0xFF250044),
+    secondaryContainer = Color(0xFF482078),
+    onSecondaryContainer = Color(0xFFF1DDFF),
+    tertiary = Color(0xFF8B8DFF),
+    background = Color(0xFF08091D),
+    onBackground = Color(0xFFF2F2FF),
+    surface = Color(0xFF11132B),
+    onSurface = Color(0xFFF2F2FF),
+    surfaceVariant = Color(0xFF202344),
+    onSurfaceVariant = Color(0xFFB8BAD8),
+    outline = Color(0xFF45496F),
+    error = Color(0xFFFF6B83),
 )
 
 private val LightScheme = lightColorScheme(
-    primary = Color(0xFF0F766E),
+    primary = Color(0xFF087EA8),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFCCFBF1),
-    onPrimaryContainer = Color(0xFF042F2A),
-    secondary = Color(0xFF3B5BDB),
-    background = Color(0xFFF6F8FC),
-    onBackground = Color(0xFF0B1220),
+    primaryContainer = Color(0xFFD6F4FF),
+    onPrimaryContainer = Color(0xFF003344),
+    secondary = Color(0xFF7836B5),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF0DFFF),
+    onSecondaryContainer = Color(0xFF31005B),
+    tertiary = Color(0xFF4C52B8),
+    background = Color(0xFFF7F7FF),
+    onBackground = Color(0xFF11132B),
     surface = Color.White,
-    onSurface = Color(0xFF0B1220),
-    surfaceVariant = Color(0xFFE8EDF6),
-    onSurfaceVariant = Color(0xFF4A5670),
-    outline = Color(0xFFB8C2D6),
-    error = Color(0xFFD92D20),
+    onSurface = Color(0xFF11132B),
+    surfaceVariant = Color(0xFFECEBFA),
+    onSurfaceVariant = Color(0xFF555674),
+    outline = Color(0xFFC4C4DD),
+    error = Color(0xFFB42345),
 )
 
 private val baseTypography = Typography()
@@ -80,8 +86,8 @@ private val K2Typography = baseTypography.copy(
 
 private val K2Shapes = Shapes(
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(26.dp),
 )
 
 @Composable
@@ -91,7 +97,6 @@ fun AppTheme(content: @Composable () -> Unit) {
         typography = K2Typography,
         shapes = K2Shapes,
     ) {
-        // The UI is Arabic, so the layout is always right-to-left regardless of the device language.
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
         }
@@ -104,19 +109,19 @@ fun LogoMark(size: Dp = 64.dp) {
         Modifier
             .size(size)
             .clip(RoundedCornerShape(size * 0.26f))
-            .background(Color(0xFF0B1B2D)),
+            .background(Color(0xFF08091D)),
         contentAlignment = Alignment.Center,
     ) {
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = Modifier.requiredSize(size * 1.45f),
+            contentDescription = "K2Pass",
+            modifier = Modifier.requiredSize(size * 1.18f),
         )
     }
 }
 
 private val avatarColors = listOf(
-    0xFF0EA5A4, 0xFF6366F1, 0xFFEC4899, 0xFFF59E0B, 0xFF10B981, 0xFF3B82F6, 0xFF8B5CF6, 0xFFEF4444,
+    0xFF087EA8, 0xFF6366F1, 0xFF9B51E0, 0xFFB56BFF, 0xFF0E9F9A, 0xFF2563EB, 0xFF7C3AED, 0xFFDB4777,
 )
 
 @Composable
@@ -132,7 +137,7 @@ fun Avatar(name: String, size: Dp = 44.dp) {
 fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
