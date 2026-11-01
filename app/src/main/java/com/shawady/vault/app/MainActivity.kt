@@ -1,5 +1,8 @@
 package com.shawady.vault.app
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -600,8 +603,9 @@ class MainActivity : FragmentActivity() {
         val ctx = LocalContext.current
         Card(
             Modifier.fillMaxWidth().clickable { if (inTrash) trashTarget = e else screen = Screen.Edit(e) },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
         ) {
             Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(e.title)
@@ -763,7 +767,10 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     private fun BottomBar() {
-        Surface(tonalElevation = 3.dp, color = MaterialTheme.colorScheme.surface) {
+        Surface(
+            tonalElevation = 3.dp, color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        ) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 TabItem(Tab.Home, "🏠", "الرئيسية")
                 TabItem(Tab.Vault, "🗄️", "الخزنة")
@@ -786,7 +793,12 @@ class MainActivity : FragmentActivity() {
             Modifier.weight(1f).clickable { tab = t }.padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(emoji)
+            Box(
+                Modifier.background(
+                    if (sel) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    RoundedCornerShape(16.dp),
+                ).padding(horizontal = 18.dp, vertical = 4.dp),
+            ) { Text(emoji) }
             Text(
                 label, style = MaterialTheme.typography.labelSmall,
                 color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,

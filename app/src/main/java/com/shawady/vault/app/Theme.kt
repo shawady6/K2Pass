@@ -1,5 +1,6 @@
 package com.shawady.vault.app
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -77,10 +78,13 @@ private val K2Typography = baseTypography.copy(
     titleMedium = baseTypography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
 )
 
+// extraSmall is what Material uses for text fields: leaving it at the 4dp default made them look square.
 private val K2Shapes = Shapes(
+    extraSmall = RoundedCornerShape(14.dp),
     small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(28.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
 @Composable
@@ -131,6 +135,7 @@ fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
         Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
