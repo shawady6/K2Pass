@@ -15,6 +15,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +40,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** One soft, rounded text-field look for the whole app (no hard outlines until focused). */
+@Composable
+fun k2FieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+    unfocusedBorderColor = Color.Transparent,
+    disabledBorderColor = Color.Transparent,
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
+)
+
 /** Text field for secrets with an eye button that shows / hides the value. */
 @Composable
 fun SecretField(
@@ -51,6 +64,7 @@ fun SecretField(
     modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
     OutlinedTextField(
+        colors = k2FieldColors(),
         value = value,
         onValueChange = onChange,
         label = { Text(label) },

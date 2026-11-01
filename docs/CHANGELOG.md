@@ -2,7 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
-## 2026-11-01 — v0.4 (unreleased until CI passes)
+## 2026-11-01 — v0.4.1 (visual polish)
+- Fixed square-looking text fields (Material `extraSmall` shape was the 4 dp default): all shapes now rounded (14/14/18/24/28 dp).
+- One soft text-field style everywhere (`k2FieldColors`), bordered rounded cards, rounded bottom bar with a pill highlight on the active tab, launcher background colour aligned with the in-app logo box (#10152B). Logo drawable unchanged.
+
+## 2026-11-01 — v0.4
 - Navigation: bottom bar Home / Vault / Tools / Settings with a central "+" Add button (type picker dialog). Home shows security summary, favorites, recent items. Tools holds the standalone password generator, TOTP codes, health report, import/export and manual sync (moved out of Settings).
 - IT Vault item types: device, server, router/MikroTik, switch, firewall, Active Directory, Wi-Fi (`EntryTypes.kt`). Type-specific data stored in `Entry.extra` (host, mgmt, vendor, model, location, related, domain, ssid, security). **No vault format or schema change** (new `type` strings + `extra` keys only).
 - Health report now covers every item that has a password (IT devices, Wi-Fi included). Vault filter "IT".

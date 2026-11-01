@@ -100,6 +100,7 @@ fun EntryEditor(
         }
 
         OutlinedTextField(
+            colors = k2FieldColors(),
             value = title, onValueChange = { title = it },
             label = { Text(if (info.creds && !info.isIt) "اسم الحساب" else "الاسم") },
             singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -118,6 +119,7 @@ fun EntryEditor(
         if (info.creds) {
             if (info.hasUser) {
                 OutlinedTextField(
+                    colors = k2FieldColors(),
                     value = username, onValueChange = { username = it }, label = { Text("اسم المستخدم / الإيميل") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
@@ -136,6 +138,7 @@ fun EntryEditor(
             Slider(value = len, onValueChange = { len = it }, valueRange = 8f..48f)
             if (type == "login") {
                 OutlinedTextField(
+                    colors = k2FieldColors(),
                     value = url, onValueChange = { url = it },
                     label = { Text("الرابط: https://site.com أو androidapp://com.package") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
@@ -148,6 +151,7 @@ fun EntryEditor(
         if (!info.isIt) for (f in info.fields) ExtraField(f, extra, shown)
 
         OutlinedTextField(
+            colors = k2FieldColors(),
             value = notes, onValueChange = { notes = it }, label = { Text("ملاحظات") },
             minLines = if (type == "note") 8 else 2,
             modifier = Modifier.fillMaxWidth(),
@@ -221,6 +225,7 @@ private fun ExtraField(f: Field, extra: MutableMap<String, String>, shown: Mutab
         )
     } else {
         OutlinedTextField(
+            colors = k2FieldColors(),
             value = value, onValueChange = { extra[f.key] = it }, label = { Text(f.label) },
             singleLine = !f.multiline, modifier = Modifier.fillMaxWidth(),
         )

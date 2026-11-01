@@ -539,6 +539,7 @@ class MainActivity : FragmentActivity() {
                     TextButton(onClick = { lockNow() }) { Text("🔒 قفل") }
                 }
                 OutlinedTextField(
+                    colors = k2FieldColors(),
                     value = q, onValueChange = { q = it },
                     placeholder = { Text("ابحث في حساباتك") },
                     singleLine = true, shape = RoundedCornerShape(16.dp),
@@ -958,6 +959,7 @@ class MainActivity : FragmentActivity() {
                 }
                 Text("مواقع / تطبيقات ممنوعة (واحد في السطر، مثال: example.com أو androidapp://com.pkg)", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(
+                    colors = k2FieldColors(),
                     value = blocked, onValueChange = { blocked = it; prefs.blockedDomains = it },
                     minLines = 2, modifier = Modifier.fillMaxWidth(),
                 )
