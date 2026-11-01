@@ -20,6 +20,7 @@ object StructureParser {
         var domain: String? = null
         var pkg: String? = null
         var userText: String? = null
+        var passText: String? = null
         var registration = false
     }
 
@@ -47,6 +48,7 @@ object StructureParser {
         val firstPass = fields.indexOfFirst { it.pass }
         if (firstPass >= 0) {
             p.passId = fields[firstPass].id
+            p.passText = fields[firstPass].text
             val second = fields.drop(firstPass + 1).firstOrNull { it.pass }
             p.confirmId = second?.id
             p.registration = second != null || fields[firstPass].newPass

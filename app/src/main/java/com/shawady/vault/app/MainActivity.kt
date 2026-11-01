@@ -13,6 +13,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -49,6 +51,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +60,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.shawady.vault.core.BiometricUnlock
 import com.shawady.vault.core.Entry
+import com.shawady.vault.core.Totp
 import com.shawady.vault.core.VaultCrypto
 import com.shawady.vault.core.VaultData
 import com.shawady.vault.core.VaultMerge
@@ -72,11 +77,14 @@ sealed interface Screen {
     data object Vault : Screen
     data class Edit(val entry: Entry?) : Screen
     data object Prefs : Screen
+    data object Health : Screen
 }
 
 class MainActivity : FragmentActivity() {
 
     private val store by lazy { VaultStore(applicationContext) }
+    private val prefs by lazy { AppPrefs(applicationContext) }
+    private val pinStore by lazy { PinStore(applicationContext) }
 
     private var screen by mutableStateOf<Screen>(Screen.Unlock)
     private var entries by mutableStateOf<List<Entry>>(emptyList())
@@ -84,6 +92,9 @@ class MainActivity : FragmentActivity() {
     private var pendingRemote by mutableStateOf<VaultCrypto.VaultFile?>(null)
     private var resumeTick by mutableStateOf(0)
     private var backgroundedAt = 0L
+    private var needMasterForExport by mutableStateOf(false)
+    private var trashTarget by mutableStateOf<Entry?>(null)
+    private var pinDialog by mutableStateOf(false)
 
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) { lockNow() }
@@ -124,9 +135,33 @@ class MainActivity : FragmentActivity() {
             }
         }
 
+    private val importEntriesLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) {
+                try {
+                    doImport(readText(uri))
+                } catch (e: Exception) {
+                    message = "فشل قراءة الملف"
+                }
+            }
+        }
+
+    private val exportCsvLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+            if (uri != null) {
+                try {
+                    val list = Session.data?.entries?.filter { !it.deleted && it.trashedAt == 0L } ?: emptyList()
+                    contentResolver.openOutputStream(uri, "wt")?.use { it.write(Importer.toCsv(list).toByteArray(Charsets.UTF_8)) }
+                    message = "اتصدّر ${list.size} عنصر كنص عادي غير مشفر. امسح الملف أول ما تخلص!"
+                } catch (e: Exception) {
+                    message = "فشل التصدير"
+                }
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        applyScreenFlag()
         ContextCompat.registerReceiver(
             this, screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF), ContextCompat.RECEIVER_NOT_EXPORTED,
         )
@@ -148,7 +183,7 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         if (Session.unlocked && backgroundedAt != 0L &&
-            SystemClock.elapsedRealtime() - backgroundedAt > AUTO_LOCK_MS
+            SystemClock.elapsedRealtime() - backgroundedAt > prefs.autoLockMs
         ) {
             lockNow()
         }
@@ -157,6 +192,7 @@ class MainActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         resumeTick++
+        applyScreenFlag()
         // The autofill "add account" page may have saved a new entry while the app was open.
         if (Session.unlocked) refreshEntries()
     }
@@ -176,6 +212,34 @@ class MainActivity : FragmentActivity() {
             ?: emptyList()
     }
 
+    @Suppress("DEPRECATION")
+    private fun applyScreenFlag() {
+        if (prefs.blockScreens) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    private fun tombstone(e: Entry, now: Long) = e.copy(
+        username = "", password = "", notes = "", totpSecret = null, deleted = true, updatedAt = now,
+        history = emptyList(), extra = emptyMap(), trashedAt = 0L, favorite = false,
+    )
+
+    /** Items that stayed in the trash for more than 30 days become tombstones. */
+    private fun purgeTrash() {
+        val d = Session.data ?: return
+        val now = System.currentTimeMillis()
+        val limit = 30L * 24 * 3600 * 1000
+        var changed = false
+        val list = d.entries.map { e ->
+            if (!e.deleted && e.trashedAt > 0L && now - e.trashedAt > limit) {
+                changed = true
+                tombstone(e, now)
+            } else {
+                e
+            }
+        }
+        if (changed) Session.persist(store, VaultData(list))
+    }
+
     private fun lockNow() {
         Session.lock()
         entries = emptyList()
@@ -193,13 +257,47 @@ class MainActivity : FragmentActivity() {
         screen = Screen.Vault
     }
 
-    private fun deleteEntry(e: Entry) {
-        saveEntry(
-            e.copy(
-                username = "", password = "", notes = "", totpSecret = null,
-                deleted = true, updatedAt = System.currentTimeMillis(), history = emptyList(),
-            ),
-        )
+    /** Edit-screen delete = move to trash (restorable for 30 days). */
+    private fun trashEntry(e: Entry) {
+        val now = System.currentTimeMillis()
+        saveEntry(e.copy(trashedAt = now, updatedAt = now, favorite = false))
+        message = "اتنقل لسلة المهملات (30 يوم)"
+    }
+
+    private fun restoreEntry(e: Entry) {
+        val d = Session.data ?: return
+        Session.persist(store, VaultData(d.entries.filter { it.id != e.id } + e.copy(trashedAt = 0L, updatedAt = System.currentTimeMillis())))
+        refreshEntries()
+    }
+
+    private fun eraseEntry(e: Entry) {
+        val d = Session.data ?: return
+        Session.persist(store, VaultData(d.entries.filter { it.id != e.id } + tombstone(e, System.currentTimeMillis())))
+        refreshEntries()
+    }
+
+    private fun toggleFavorite(e: Entry) {
+        val d = Session.data ?: return
+        Session.persist(store, VaultData(d.entries.filter { it.id != e.id } + e.copy(favorite = !e.favorite, updatedAt = System.currentTimeMillis())))
+        refreshEntries()
+    }
+
+    private fun doImport(text: String) {
+        val d = Session.data ?: return
+        val res = try {
+            Importer.parse(text, System.currentTimeMillis())
+        } catch (e: Exception) {
+            message = e.message ?: "تعذر قراءة الملف"
+            return
+        }
+        fun key(e: Entry) = Triple(e.url.lowercase().trimEnd('/'), e.username, e.password)
+        val seen = d.entries.filter { !it.deleted && it.type == "login" }.map { key(it) }.toHashSet()
+        val fresh = res.entries.filter { it.type != "login" || seen.add(key(it)) }
+        if (fresh.isNotEmpty()) {
+            Session.persist(store, VaultData(d.entries + fresh))
+            refreshEntries()
+        }
+        message = "اتضاف ${fresh.size} عنصر، اتخطى ${res.entries.size - fresh.size} مكرر. امسح ملف الاستيراد (غير مشفر)!"
     }
 
     // ---------- manual sync ----------
@@ -239,7 +337,7 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     private fun Root() {
-        BackHandler(enabled = screen is Screen.Edit || screen is Screen.Prefs) { screen = Screen.Vault }
+        BackHandler(enabled = screen is Screen.Edit || screen is Screen.Prefs || screen is Screen.Health) { screen = Screen.Vault }
         Box(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
             Column(Modifier.fillMaxSize()) {
                 message?.let { m ->
@@ -261,6 +359,7 @@ class MainActivity : FragmentActivity() {
                         onUnlocked = { f, k ->
                             try {
                                 Session.open(f, k)
+                                purgeTrash()
                                 refreshEntries()
                                 screen = Screen.Vault
                             } catch (e: Exception) {
@@ -275,12 +374,20 @@ class MainActivity : FragmentActivity() {
                         orig = s.entry,
                         onSave = { saveEntry(it) },
                         onCancel = { screen = Screen.Vault },
-                        onDelete = s.entry?.let { e -> { deleteEntry(e) } },
+                        onDelete = s.entry?.let { e -> { trashEntry(e) } },
                     )
                     Screen.Prefs -> PrefsScreen()
+                    Screen.Health -> HealthScreen(
+                        entries = entries,
+                        onOpen = { e -> screen = Screen.Edit(e) },
+                        onBack = { screen = Screen.Prefs },
+                    )
                 }
             }
             pendingRemote?.let { RemotePasswordDialog(it) }
+            trashTarget?.let { TrashDialog(it) }
+            if (needMasterForExport) MasterConfirmDialog()
+            if (pinDialog) PinSetupDialog()
         }
     }
 
@@ -387,22 +494,31 @@ class MainActivity : FragmentActivity() {
     private fun VaultScreen() {
         var q by remember { mutableStateOf("") }
         var cat by remember { mutableStateOf<String?>(null) }
-        val shown = entries.filter {
-            (cat == null || it.category == cat) &&
+        var filter by remember { mutableStateOf("all") }
+        val inTrash = filter == "trash"
+        val active = entries.filter { it.trashedAt == 0L }
+        val base = if (inTrash) entries.filter { it.trashedAt > 0L } else active
+        val shown = base.filter {
+            val byFilter = when (filter) {
+                "fav" -> it.favorite
+                "login", "note", "card", "identity" -> it.type == filter
+                else -> true
+            }
+            byFilter && (inTrash || cat == null || it.category == cat) &&
                 (q.isBlank() || it.title.contains(q, true) || it.username.contains(q, true) || it.url.contains(q, true))
-        }
+        }.sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.thenBy { it.title.lowercase() })
         Box(Modifier.fillMaxSize()) {
             Column(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LogoMark(40.dp)
+                    LogoMark(44.dp)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                         Text(
-                            "${entries.size} حساب", style = MaterialTheme.typography.bodySmall,
+                            "${active.size} عنصر", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -415,11 +531,29 @@ class MainActivity : FragmentActivity() {
                     singleLine = true, shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                CategoryChips(selected = cat, onSelect = { cat = it }, withAll = true)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for ((id, label) in listOf(
+                        "all" to "الكل", "fav" to "⭐ المفضلة", "login" to "🔑 دخول", "note" to "📝 ملاحظات",
+                        "card" to "💳 كروت", "identity" to "🪪 هويات", "trash" to "🗑 المهملات",
+                    )) {
+                        FilterChip(selected = filter == id, onClick = { filter = id }, label = { Text(label) })
+                    }
+                }
+                if (!inTrash) CategoryChips(selected = cat, onSelect = { cat = it }, withAll = true)
+                if (inTrash) {
+                    Text(
+                        "العناصر هنا بتتمسح نهائيًا بعد 30 يوم. اضغط على عنصر للاسترجاع أو الحذف.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (shown.isEmpty()) {
                     Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                         Text(
-                            if (entries.isEmpty()) "الخزنة فاضية.\nاضغط \"+ حساب جديد\" وضيف أول حساب" else "مفيش نتائج",
+                            when {
+                                inTrash -> "سلة المهملات فاضية"
+                                entries.isEmpty() -> "الخزنة فاضية.\nاضغط \"+ جديد\" وضيف أول عنصر"
+                                else -> "مفيش نتائج"
+                            },
                             textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -429,42 +563,183 @@ class MainActivity : FragmentActivity() {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = 88.dp),
                     ) {
-                        items(shown, key = { it.id }) { e -> EntryCard(e) }
+                        items(shown, key = { it.id }) { e -> EntryCard(e, inTrash) }
                     }
                 }
             }
-            ExtendedFloatingActionButton(
-                onClick = { screen = Screen.Edit(null) },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            ) { Text("+ حساب جديد") }
+            if (!inTrash) {
+                ExtendedFloatingActionButton(
+                    onClick = { screen = Screen.Edit(null) },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                ) { Text("+ جديد") }
+            }
         }
     }
 
+    private fun subtitle(e: Entry): String = when (e.type) {
+        "note" -> e.notes.lineSequence().firstOrNull { it.isNotBlank() } ?: "—"
+        "card" -> e.extra["number"]?.takeIf { it.length >= 4 }?.let { "•••• " + it.takeLast(4) } ?: (e.extra["holder"] ?: "—")
+        "identity" -> e.extra["name"] ?: e.extra["email"] ?: "—"
+        else -> e.username.ifBlank { "—" }
+    }
+
     @Composable
-    private fun EntryCard(e: Entry) {
+    private fun EntryCard(e: Entry, inTrash: Boolean) {
+        val ctx = LocalContext.current
         Card(
-            Modifier.fillMaxWidth().clickable { screen = Screen.Edit(e) },
+            Modifier.fillMaxWidth().clickable { if (inTrash) trashTarget = e else screen = Screen.Edit(e) },
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         ) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Avatar(e.title)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Text(e.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        e.username.ifBlank { "—" }, style = MaterialTheme.typography.bodySmall,
+                        subtitle(e), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Text(Categories.of(e.category).emoji)
+                if (!inTrash) {
+                    if (e.type == "login") {
+                        if (!e.totpSecret.isNullOrBlank()) {
+                            TextButton(onClick = {
+                                val r = Totp.generate(e.totpSecret!!)
+                                if (r != null) copySensitive(ctx, "totp", r.code) else message = "مفتاح TOTP غير صالح"
+                            }) { Text("OTP") }
+                        }
+                        TextButton(onClick = { copySensitive(ctx, "password", e.password) }) { Text("نسخ") }
+                    }
+                    TextButton(onClick = { toggleFavorite(e) }) { Text(if (e.favorite) "⭐" else "☆") }
+                } else {
+                    Text(Categories.of(e.category).emoji, Modifier.padding(end = 12.dp))
+                }
             }
         }
     }
 
     @Composable
+    private fun TrashDialog(e: Entry) {
+        val daysLeft = (30 - (System.currentTimeMillis() - e.trashedAt) / (24L * 3600 * 1000)).coerceAtLeast(0)
+        AlertDialog(
+            onDismissRequest = { trashTarget = null },
+            title = { Text(e.title) },
+            text = { Text("هيتمسح نهائيًا بعد $daysLeft يوم.") },
+            confirmButton = { TextButton(onClick = { restoreEntry(e); trashTarget = null }) { Text("استرجاع") } },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { eraseEntry(e); trashTarget = null }) {
+                        Text("حذف نهائي", color = MaterialTheme.colorScheme.error)
+                    }
+                    TextButton(onClick = { trashTarget = null }) { Text("إلغاء") }
+                }
+            },
+        )
+    }
+
+    /** Asks for the master password before an unencrypted export (the vault key proves who is asking). */
+    @Composable
+    private fun MasterConfirmDialog() {
+        var pw by remember { mutableStateOf("") }
+        var busy by remember { mutableStateOf(false) }
+        var bad by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        AlertDialog(
+            onDismissRequest = { if (!busy) needMasterForExport = false },
+            title = { Text("تصدير غير مشفر") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("الملف هيحتوي كل الباسوردات كنص عادي. اكتب الماستر باسورد للتأكيد.")
+                    PasswordField("الماستر باسورد", pw, !busy) { pw = it; bad = false }
+                    if (bad) Text("كلمة المرور غير صحيحة", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !busy && pw.isNotEmpty(), onClick = {
+                    busy = true
+                    val chars = pw.toCharArray()
+                    scope.launch {
+                        val ok = withContext(Dispatchers.Default) {
+                            try {
+                                VaultCrypto.unlock(Session.file!!, chars).fill(0)
+                                true
+                            } catch (e: Exception) {
+                                false
+                            } finally {
+                                chars.fill('\u0000')
+                            }
+                        }
+                        busy = false
+                        if (ok) {
+                            needMasterForExport = false
+                            exportCsvLauncher.launch("k2pass-plain-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".csv")
+                        } else {
+                            bad = true
+                        }
+                    }
+                }) { Text("تصدير") }
+            },
+            dismissButton = { TextButton(enabled = !busy, onClick = { needMasterForExport = false }) { Text("إلغاء") } },
+        )
+    }
+
+    @Composable
+    private fun PinSetupDialog() {
+        var p1 by remember { mutableStateOf("") }
+        var p2 by remember { mutableStateOf("") }
+        var busy by remember { mutableStateOf(false) }
+        var err by remember { mutableStateOf<String?>(null) }
+        val scope = rememberCoroutineScope()
+        AlertDialog(
+            onDismissRequest = { if (!busy) pinDialog = false },
+            title = { Text("إعداد PIN") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("${PinStore.MIN_LEN} أرقام على الأقل. 5 محاولات غلط وبيتمسح. الماستر باسورد يفضل الأساسي.")
+                    SecretField("PIN", p1, { v -> p1 = v.filter { it.isDigit() } }, false, {}, !busy, KeyboardType.NumberPassword)
+                    PasswordField("تأكيد الـ PIN", p2, !busy) { v -> p2 = v.filter { it.isDigit() } }
+                    err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !busy, onClick = {
+                    if (p1.length < PinStore.MIN_LEN) {
+                        err = "الـ PIN لازم ${PinStore.MIN_LEN} أرقام على الأقل"
+                    } else if (p1 != p2) {
+                        err = "التأكيد مش مطابق"
+                    } else {
+                        val k = Session.keyCopy()
+                        if (k == null) {
+                            pinDialog = false
+                        } else {
+                            busy = true
+                            val chars = p1.toCharArray()
+                            scope.launch {
+                                withContext(Dispatchers.Default) {
+                                    try { pinStore.set(chars, k) } finally { chars.fill('\u0000'); k.fill(0) }
+                                }
+                                busy = false
+                                pinDialog = false
+                                message = "اتفعّل الـ PIN"
+                            }
+                        }
+                    }
+                }) { Text("حفظ") }
+            },
+            dismissButton = { TextButton(enabled = !busy, onClick = { pinDialog = false }) { Text("إلغاء") } },
+        )
+    }
+
+    @Composable
     private fun PrefsScreen() {
         var bioOn by remember { mutableStateOf(store.loadBlob() != null) }
+        var pinOn by remember(pinDialog) { mutableStateOf(pinStore.isSet()) }
+        var autoLock by remember { mutableStateOf(prefs.autoLockMs) }
+        var clipSec by remember { mutableStateOf(prefs.clipClearSec) }
+        var blockScr by remember { mutableStateOf(prefs.blockScreens) }
+        var copyTotp by remember { mutableStateOf(prefs.copyTotp) }
+        var blocked by remember { mutableStateOf(prefs.blockedDomains) }
         var cur by remember { mutableStateOf("") }
         var new1 by remember { mutableStateOf("") }
         var new2 by remember { mutableStateOf("") }
@@ -492,6 +767,15 @@ class MainActivity : FragmentActivity() {
                         )
                     }) { Text("تفعيل الملء التلقائي") }
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("نسخ كود TOTP بعد التعبئة", Modifier.weight(1f))
+                    Switch(checked = copyTotp, onCheckedChange = { copyTotp = it; prefs.copyTotp = it })
+                }
+                Text("مواقع / تطبيقات ممنوعة (واحد في السطر، مثال: example.com أو androidapp://com.pkg)", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = blocked, onValueChange = { blocked = it; prefs.blockedDomains = it },
+                    minLines = 2, modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             Section("الأمان") {
@@ -517,6 +801,28 @@ class MainActivity : FragmentActivity() {
                             bioOn = false
                         }
                     })
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("فتح بـ PIN", Modifier.weight(1f))
+                    Switch(checked = pinOn, onCheckedChange = { want ->
+                        if (want) pinDialog = true else { pinStore.clear(); pinOn = false }
+                    })
+                }
+                Text("القفل التلقائي بعد الخروج من التطبيق", style = MaterialTheme.typography.titleSmall)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for ((ms, label) in listOf(60_000L to "دقيقة", 300_000L to "5 دقايق", 900_000L to "15 دقيقة", 3_600_000L to "ساعة")) {
+                        FilterChip(selected = autoLock == ms, onClick = { autoLock = ms; prefs.autoLockMs = ms }, label = { Text(label) })
+                    }
+                }
+                Text("مسح الحافظة بعد النسخ", style = MaterialTheme.typography.titleSmall)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for ((sec, label) in listOf(10 to "10 ث", 20 to "20 ث", 30 to "30 ث", 60 to "60 ث", 0 to "مفيش")) {
+                        FilterChip(selected = clipSec == sec, onClick = { clipSec = sec; prefs.clipClearSec = sec }, label = { Text(label) })
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("منع لقطات الشاشة", Modifier.weight(1f))
+                    Switch(checked = blockScr, onCheckedChange = { blockScr = it; prefs.blockScreens = it; applyScreenFlag() })
                 }
                 Text("تغيير الماستر باسورد", style = MaterialTheme.typography.titleSmall)
                 PasswordField("الحالي", cur, !busy) { cur = it }
@@ -560,6 +866,17 @@ class MainActivity : FragmentActivity() {
                 }) { Text("تغيير") }
             }
 
+            Section("صحة الخزنة") {
+                Text("اكتشف الباسوردات الضعيفة والمكررة والقديمة.")
+                OutlinedButton(onClick = { screen = Screen.Health }) { Text("🩺 فتح التقرير") }
+            }
+
+            Section("استيراد وتصدير") {
+                Text("استيراد من Bitwarden (JSON) أو CSV من Chrome / Bitwarden / KeePassXC / LastPass. الملفات دي غير مشفرة، امسحها بعد الاستيراد.")
+                OutlinedButton(onClick = { importEntriesLauncher.launch(arrayOf("*/*")) }) { Text("استيراد JSON / CSV") }
+                OutlinedButton(onClick = { needMasterForExport = true }) { Text("تصدير CSV غير مشفر") }
+            }
+
             Section("المزامنة اليدوية") {
                 Text("١) استورد ودمج ملف الجهاز التاني  ٢) صدّر الملف المدموج وانقله له.")
                 OutlinedButton(onClick = { mergeLauncher.launch(arrayOf("*/*")) }) { Text("استيراد ودمج ملف") }
@@ -569,13 +886,9 @@ class MainActivity : FragmentActivity() {
             }
 
             Text(
-                "K2Pass 0.2 — أوفلاين بالكامل",
+                "K2Pass 0.3 — أوفلاين بالكامل",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-
-    private companion object {
-        const val AUTO_LOCK_MS = 60_000L
     }
 }

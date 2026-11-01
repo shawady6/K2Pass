@@ -10,10 +10,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.shawady.vault.core.BiometricUnlock
@@ -34,24 +38,48 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** Text field for secrets with an eye button that shows / hides the value. */
 @Composable
-fun PasswordField(label: String, value: String, enabled: Boolean = true, onChange: (String) -> Unit) {
+fun SecretField(
+    label: String,
+    value: String,
+    onChange: (String) -> Unit,
+    show: Boolean,
+    onToggle: () -> Unit,
+    enabled: Boolean = true,
+    keyboardType: KeyboardType = KeyboardType.Password,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
         label = { Text(label) },
         enabled = enabled,
         singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth(),
+        visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        trailingIcon = {
+            IconButton(onClick = onToggle) {
+                Icon(
+                    imageVector = if (show) EyeIcons.EyeOff else EyeIcons.Eye,
+                    contentDescription = if (show) "إخفاء" else "إظهار",
+                )
+            }
+        },
+        modifier = modifier,
     )
+}
+
+@Composable
+fun PasswordField(label: String, value: String, enabled: Boolean = true, onChange: (String) -> Unit) {
+    var show by remember { mutableStateOf(false) }
+    SecretField(label, value, onChange, show, { show = !show }, enabled)
 }
 
 /**
  * Shared unlock screen (used by the app and by the autofill auth screen).
- * Tries biometrics automatically when enabled; master password is always available.
- * Wrong password => exponential delay (1s, 2s, 4s ... max 30s).
+ * Tries biometrics automatically when enabled; PIN (if set up) or the master password are alternatives.
+ * Wrong master password => exponential delay (1s, 2s, 4s ... max 30s). Wrong PIN => 5 tries then PIN is removed.
  * On success the caller owns the returned key and must wipe it.
  */
 @Composable
@@ -62,6 +90,7 @@ fun UnlockScreen(
     extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     var pw by remember { mutableStateOf("") }
+    var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var fails by remember { mutableStateOf(0) }
@@ -69,6 +98,9 @@ fun UnlockScreen(
     val bio = remember { BiometricUnlock(activity) }
     val blob = remember { store.loadBlob() }
     val bioOk = blob != null && bio.isAvailable() && store.biometricStillAllowed()
+    val pinStore = remember { PinStore(activity.applicationContext) }
+    var pinOk by remember { mutableStateOf(pinStore.isSet() && store.biometricStillAllowed()) }
+    var usePin by remember { mutableStateOf(pinOk) }
 
     fun tryBio() {
         if (!bioOk || blob == null) return
@@ -118,18 +150,65 @@ fun UnlockScreen(
         }
     }
 
+    fun submitPin() {
+        if (busy) return
+        busy = true
+        error = null
+        val chars = pin.toCharArray()
+        scope.launch {
+            val key = withContext(Dispatchers.Default) {
+                try {
+                    pinStore.unlock(chars)
+                } finally {
+                    chars.fill('\u0000')
+                }
+            }
+            busy = false
+            pin = ""
+            if (key == null) {
+                if (!pinStore.isSet()) {
+                    pinOk = false
+                    usePin = false
+                    error = "اتمسح الـ PIN بعد محاولات غلط. استخدم الماستر باسورد."
+                } else {
+                    error = "PIN غلط (باقي ${pinStore.attemptsLeft()} محاولات)"
+                }
+            } else {
+                try {
+                    onUnlocked(store.load(), key)
+                } catch (e: Exception) {
+                    key.fill(0)
+                    error = "تعذر فتح الخزنة"
+                }
+            }
+        }
+    }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        LogoMark(72.dp)
+        LogoMark(88.dp)
         Text("K2Pass", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
         Text("افتح الخزنة", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        PasswordField("الماستر باسورد", pw, !busy) { pw = it }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = { submit() }, enabled = !busy && pw.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
-            Text(if (busy) "جاري الفتح..." else "فتح")
+        if (usePin) {
+            PasswordField("PIN", pin, !busy) { v -> pin = v.filter { it.isDigit() } }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(
+                onClick = { submitPin() }, enabled = !busy && pin.length >= PinStore.MIN_LEN,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (busy) "جاري الفتح..." else "فتح بالـ PIN") }
+            TextButton(onClick = { usePin = false; error = null }) { Text("استخدم الماستر باسورد") }
+        } else {
+            PasswordField("الماستر باسورد", pw, !busy) { pw = it }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(onClick = { submit() }, enabled = !busy && pw.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
+                Text(if (busy) "جاري الفتح..." else "فتح")
+            }
+            if (pinOk) {
+                TextButton(onClick = { usePin = true; error = null }) { Text("استخدم PIN") }
+            }
         }
         if (bioOk) {
             OutlinedButton(onClick = { tryBio() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {

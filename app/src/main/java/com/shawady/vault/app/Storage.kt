@@ -11,6 +11,7 @@ import java.nio.file.StandardCopyOption
 
 /** Private-storage persistence. The vault file is always encrypted; nothing sensitive is stored in clear. */
 class VaultStore(ctx: Context) {
+    private val appCtx: Context = ctx.applicationContext
     private val dir: File = ctx.filesDir
     private val vaultFile = File(dir, "vault.json")
     private val bioFile = File(dir, "bio.json")
@@ -26,6 +27,7 @@ class VaultStore(ctx: Context) {
         VaultCrypto.VaultFile.fromJson(json)
         writeAtomic(vaultFile, json)
         deleteBlob()
+        PinStore(appCtx).clear()
     }
 
     fun saveBlob(b: BiometricUnlock.Blob) = writeAtomic(

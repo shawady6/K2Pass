@@ -109,7 +109,7 @@ object VaultCrypto {
 
     // ---- primitives ----
 
-    private fun deriveKey(password: CharArray, salt: ByteArray, p: KdfParams): ByteArray {
+    fun deriveKey(password: CharArray, salt: ByteArray, p: KdfParams): ByteArray {
         val pwBytes = Charsets.UTF_8.encode(CharBuffer.wrap(password)).let { bb ->
             ByteArray(bb.remaining()).also { bb.get(it) }
         }

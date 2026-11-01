@@ -32,7 +32,7 @@ object PasswordGenerator {
     }
 }
 
-/** Copies to the clipboard flagged as sensitive and clears it after 20 seconds. */
+/** Copies to the clipboard flagged as sensitive and clears it after the configured time (default 20 s). */
 fun copySensitive(ctx: Context, label: String, text: String) {
     val cm = ctx.getSystemService(ClipboardManager::class.java) ?: return
     val clip = ClipData.newPlainText(label, text)
@@ -40,9 +40,12 @@ fun copySensitive(ctx: Context, label: String, text: String) {
         putBoolean("android.content.extra.IS_SENSITIVE", true)
     }
     cm.setPrimaryClip(clip)
-    Handler(Looper.getMainLooper()).postDelayed({
-        try { cm.clearPrimaryClip() } catch (e: Exception) { }
-    }, 20_000)
+    val sec = AppPrefs(ctx).clipClearSec
+    if (sec > 0) {
+        Handler(Looper.getMainLooper()).postDelayed({
+            try { cm.clearPrimaryClip() } catch (e: Exception) { }
+        }, sec * 1000L)
+    }
 }
 
 private val secondLevel = setOf("co", "com", "org", "net", "gov", "edu", "ac")
@@ -65,6 +68,7 @@ fun siteName(base: String): String =
  */
 object Matcher {
     fun matches(e: Entry, domain: String?, pkg: String?): Boolean {
+        if (e.deleted || e.trashedAt > 0L || e.type != "login") return false
         val u = e.url.trim().lowercase()
         if (u.isEmpty()) return false
         if (u.startsWith("androidapp://")) {

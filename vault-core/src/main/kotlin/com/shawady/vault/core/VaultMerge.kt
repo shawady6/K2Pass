@@ -50,7 +50,10 @@ object VaultMerge {
     }
 
     private fun key(e: Entry): String =
-        listOf(e.title, e.username, e.password, e.url, e.notes, e.totpSecret ?: "", e.category).joinToString("\u0000")
+        listOf(
+            e.title, e.username, e.password, e.url, e.notes, e.totpSecret ?: "", e.category,
+            e.type, e.favorite.toString(), e.trashedAt.toString(), e.extra.toSortedMap().toString(),
+        ).joinToString("\u0000")
 
     private fun mergeHistory(h1: List<Entry>, h2: List<Entry>, extra: Entry?): List<Entry> =
         (h1 + h2 + listOfNotNull(extra))
