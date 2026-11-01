@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.shawady.vault.core.Entry
 
-/** Vault health report: weak, reused and old passwords. Only active (not deleted / trashed) logins count. */
+/** Vault health report: weak, reused and old passwords. Every active item that has a password counts (logins, IT devices, Wi-Fi). */
 object Health {
     class Report(val weak: List<Entry>, val reused: List<List<Entry>>, val old: List<Entry>, val total: Int)
 
@@ -42,7 +42,7 @@ object Health {
     }
 
     fun analyze(all: List<Entry>, now: Long): Report {
-        val logins = all.filter { !it.deleted && it.trashedAt == 0L && it.type == "login" && it.password.isNotEmpty() }
+        val logins = all.filter { !it.deleted && it.trashedAt == 0L && it.password.isNotEmpty() }
         val weak = logins.filter { isWeak(it.password) }
         val reused = logins.groupBy { it.password }.values.filter { it.size > 1 }
         val old = logins.filter { now - it.updatedAt > YEAR_MS }

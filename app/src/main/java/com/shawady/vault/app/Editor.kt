@@ -40,24 +40,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-private val TYPES = listOf("login" to "🔑 دخول", "note" to "📝 ملاحظة", "card" to "💳 كارت", "identity" to "🪪 هوية")
-
-private class Field(val key: String, val label: String, val secret: Boolean = false, val numeric: Boolean = false)
-
-private val CARD_FIELDS = listOf(
-    Field("holder", "اسم حامل الكارت"),
-    Field("number", "رقم الكارت", secret = true, numeric = true),
-    Field("exp", "تاريخ الانتهاء (MM/YY)"),
-    Field("cvv", "CVV", secret = true, numeric = true),
-)
-private val ID_FIELDS = listOf(
-    Field("name", "الاسم الكامل"),
-    Field("email", "الإيميل"),
-    Field("phone", "الموبايل"),
-    Field("address", "العنوان"),
-    Field("idnum", "الرقم القومي / جواز", secret = true),
-)
-
 /**
  * One form for adding and editing an item (used by the app and by the autofill pages).
  *  - [orig]: the item being edited, or null for a new one.
@@ -72,6 +54,7 @@ fun EntryEditor(
     prefill: Entry? = null,
     autoGenerate: Boolean = false,
     allowTypes: Boolean = true,
+    initialType: String = "login",
     saveLabel: String = "حفظ",
     onSave: (Entry) -> Unit,
     onCancel: () -> Unit,
@@ -79,7 +62,8 @@ fun EntryEditor(
 ) {
     val ctx = LocalContext.current
     val base = orig ?: prefill
-    var type by remember { mutableStateOf(base?.type ?: "login") }
+    var type by remember { mutableStateOf(base?.type ?: initialType) }
+    val info = EntryTypes.of(type)
     var title by remember { mutableStateOf(base?.title ?: "") }
     var username by remember { mutableStateOf(base?.username ?: "") }
     var password by remember {
@@ -109,15 +93,15 @@ fun EntryEditor(
 
         if (orig == null && allowTypes) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for ((id, label) in TYPES) {
-                    FilterChip(selected = type == id, onClick = { type = id }, label = { Text(label) })
+                for (t in EntryTypes.all) {
+                    FilterChip(selected = type == t.id, onClick = { type = t.id }, label = { Text(t.emoji + " " + t.label) })
                 }
             }
         }
 
         OutlinedTextField(
             value = title, onValueChange = { title = it },
-            label = { Text(if (type == "login") "اسم الحساب" else "الاسم") },
+            label = { Text(if (info.creds && !info.isIt) "اسم الحساب" else "الاسم") },
             singleLine = true, modifier = Modifier.fillMaxWidth(),
         )
 
@@ -129,24 +113,28 @@ fun EntryEditor(
         Text("الفئة", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         CategoryChips(selected = cat, onSelect = { id -> if (id != null) cat = id }, withAll = false)
 
-        when (type) {
-            "login" -> {
+        if (info.isIt) for (f in info.fields) ExtraField(f, extra, shown)
+
+        if (info.creds) {
+            if (info.hasUser) {
                 OutlinedTextField(
                     value = username, onValueChange = { username = it }, label = { Text("اسم المستخدم / الإيميل") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
-                SecretField("الباسورد", password, { password = it }, showPass, { showPass = !showPass })
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { copySensitive(ctx, "username", username) }) { Text("نسخ المستخدم") }
-                    TextButton(onClick = { copySensitive(ctx, "password", password) }) { Text("نسخ الباسورد") }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = { password = PasswordGenerator.generate(len.toInt(), symbols); showPass = true }) { Text("توليد") }
-                    Checkbox(checked = symbols, onCheckedChange = { symbols = it })
-                    Text("رموز")
-                    Text("   الطول ${len.toInt()}")
-                }
-                Slider(value = len, onValueChange = { len = it }, valueRange = 8f..48f)
+            }
+            SecretField(info.passLabel, password, { password = it }, showPass, { showPass = !showPass })
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (info.hasUser) TextButton(onClick = { copySensitive(ctx, "username", username) }) { Text("نسخ المستخدم") }
+                TextButton(onClick = { copySensitive(ctx, "password", password) }) { Text("نسخ الباسورد") }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { password = PasswordGenerator.generate(len.toInt(), symbols); showPass = true }) { Text("توليد") }
+                Checkbox(checked = symbols, onCheckedChange = { symbols = it })
+                Text("رموز")
+                Text("   الطول ${len.toInt()}")
+            }
+            Slider(value = len, onValueChange = { len = it }, valueRange = 8f..48f)
+            if (type == "login") {
                 OutlinedTextField(
                     value = url, onValueChange = { url = it },
                     label = { Text("الرابط: https://site.com أو androidapp://com.package") },
@@ -155,9 +143,9 @@ fun EntryEditor(
                 SecretField("مفتاح TOTP (base32 أو otpauth://)", totp, { totp = it }, showTotp, { showTotp = !showTotp })
                 if (totp.isNotBlank()) TotpLive(totp)
             }
-            "card" -> for (f in CARD_FIELDS) ExtraField(f, extra, shown)
-            "identity" -> for (f in ID_FIELDS) ExtraField(f, extra, shown)
         }
+
+        if (!info.isIt) for (f in info.fields) ExtraField(f, extra, shown)
 
         OutlinedTextField(
             value = notes, onValueChange = { notes = it }, label = { Text("ملاحظات") },
@@ -177,15 +165,11 @@ fun EntryEditor(
                 } else {
                     val now = System.currentTimeMillis()
                     val isLogin = type == "login"
-                    val un = if (isLogin) username.trim() else ""
-                    val pw = if (isLogin) password else ""
+                    val un = if (info.creds && info.hasUser) username.trim() else ""
+                    val pw = if (info.creds) password else ""
                     val u = if (isLogin) url.trim() else ""
                     val tp = if (isLogin) totp.trim().ifEmpty { null } else null
-                    val keys = when (type) {
-                        "card" -> CARD_FIELDS.map { it.key }
-                        "identity" -> ID_FIELDS.map { it.key }
-                        else -> emptyList()
-                    }
+                    val keys = info.fields.map { it.key }
                     val ex: Map<String, String> = extra.filter { it.key in keys && it.value.isNotBlank() }.toMap()
                     val e = if (orig == null) {
                         Entry(
@@ -238,7 +222,7 @@ private fun ExtraField(f: Field, extra: MutableMap<String, String>, shown: Mutab
     } else {
         OutlinedTextField(
             value = value, onValueChange = { extra[f.key] = it }, label = { Text(f.label) },
-            singleLine = f.key != "address", modifier = Modifier.fillMaxWidth(),
+            singleLine = !f.multiline, modifier = Modifier.fillMaxWidth(),
         )
     }
 }

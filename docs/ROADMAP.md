@@ -18,7 +18,7 @@ Priorities: security and correctness first, features second. Each phase ends wit
 - Master-password strength check; vault-key rotation; PIN policy review; release signing + minification; lint + dependency audit; Argon2 benchmark on the phone.
 - **Acceptance:** items in SECURITY_ARCHITECTURE §5 (1,3,4,6,12-prep) closed or consciously accepted in writing.
 
-## Phase 3 — Product model & UI
+## Phase 3 — Product model & UI (partly done in v0.4: IT types, navigation; remaining: custom folders, real linked credentials, proper icons, accessibility)
 - IT Vault types (device, server, router, MikroTik, switch, firewall, AD, Wi-Fi) with typed fields and related-credential links; custom folders.
 - Navigation: Home / Vault / Tools / Settings with central Add; Tools = generator, health, TOTP, import/export.
 - Accessibility pass (TalkBack, font scale, contrast). Keep the logo unchanged.

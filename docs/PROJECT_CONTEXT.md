@@ -1,6 +1,6 @@
 # K2Pass — Project Context (source of truth)
 
-Last verified against commit `99c014b` (2026-11-01). If this file and the code disagree, the code wins — then fix this file.
+Last verified against commit `99c014b` (v0.4 changes described in CHANGELOG, not yet device-tested) (2026-11-01). If this file and the code disagree, the code wins — then fix this file.
 Status words (IMPLEMENTED / NEEDS TESTING / PLANNED …) are defined in [FEATURE_MATRIX.md](FEATURE_MATRIX.md). "Compiles in CI" is **not** "works on a device".
 
 ## 1. Owner and constraints
@@ -24,7 +24,7 @@ One vault for all credentials: websites, email, social, banking, Wi-Fi, PCs/lapt
 | Identity | Name **K2Pass**. Logo = silver shield, blue K, teal V, vault wheel on a navy square (`ic_launcher_foreground.xml`). **Do not change the logo unless the owner asks.** Palette was refreshed by the owner on 2026-11-01 (midnight violet + cyan). |
 | Eye icon | Show/hide icon exists but the owner dislikes its shape; keep until he proposes a design. |
 | Build | AGP 8.7.3, Kotlin 2.0.21, Gradle 8.11.1, Compose BOM 2024.12.01, argon2kt 1.5.0, androidx.biometric 1.1.0. |
-| UI direction | Proposed: bottom navigation Home / Vault / Tools / Settings and a central "Add" action with all entry types. **Not implemented**; v0.3 is a single list screen + settings. |
+| UI direction | Bottom navigation Home / Vault / Tools / Settings with a central "Add" action listing all entry types. Implemented in v0.4 (needs device review; icons are emoji placeholders to be replaced by proper vector icons). |
 
 ## 4. Architecture (actual)
 ```

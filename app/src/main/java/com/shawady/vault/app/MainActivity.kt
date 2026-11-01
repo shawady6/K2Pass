@@ -10,6 +10,14 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.RowScope
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -71,12 +79,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+enum class Tab { Home, Vault, Tools, Settings }
+
 sealed interface Screen {
     data object Setup : Screen
     data object Unlock : Screen
     data object Vault : Screen
-    data class Edit(val entry: Entry?) : Screen
-    data object Prefs : Screen
+    data class Edit(val entry: Entry?, val newType: String = "login") : Screen
     data object Health : Screen
 }
 
@@ -87,6 +96,8 @@ class MainActivity : FragmentActivity() {
     private val pinStore by lazy { PinStore(applicationContext) }
 
     private var screen by mutableStateOf<Screen>(Screen.Unlock)
+    private var tab by mutableStateOf(Tab.Home)
+    private var addDialog by mutableStateOf(false)
     private var entries by mutableStateOf<List<Entry>>(emptyList())
     private var message by mutableStateOf<String?>(null)
     private var pendingRemote by mutableStateOf<VaultCrypto.VaultFile?>(null)
@@ -337,7 +348,7 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     private fun Root() {
-        BackHandler(enabled = screen is Screen.Edit || screen is Screen.Prefs || screen is Screen.Health) { screen = Screen.Vault }
+        BackHandler(enabled = screen is Screen.Edit || screen is Screen.Health) { screen = Screen.Vault }
         Box(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
             Column(Modifier.fillMaxSize()) {
                 message?.let { m ->
@@ -361,6 +372,7 @@ class MainActivity : FragmentActivity() {
                                 Session.open(f, k)
                                 purgeTrash()
                                 refreshEntries()
+                                tab = Tab.Home
                                 screen = Screen.Vault
                             } catch (e: Exception) {
                                 k.fill(0)
@@ -368,19 +380,19 @@ class MainActivity : FragmentActivity() {
                             }
                         },
                     )
-                    Screen.Vault -> VaultScreen()
+                    Screen.Vault -> Shell()
                     is Screen.Edit -> EntryEditor(
-                        heading = if (s.entry == null) "حساب جديد" else "تعديل الحساب",
+                        heading = if (s.entry == null) "عنصر جديد" else "تعديل",
                         orig = s.entry,
+                        initialType = s.newType,
                         onSave = { saveEntry(it) },
                         onCancel = { screen = Screen.Vault },
                         onDelete = s.entry?.let { e -> { trashEntry(e) } },
                     )
-                    Screen.Prefs -> PrefsScreen()
                     Screen.Health -> HealthScreen(
                         entries = entries,
                         onOpen = { e -> screen = Screen.Edit(e) },
-                        onBack = { screen = Screen.Prefs },
+                        onBack = { tab = Tab.Tools; screen = Screen.Vault },
                     )
                 }
             }
@@ -388,6 +400,7 @@ class MainActivity : FragmentActivity() {
             trashTarget?.let { TrashDialog(it) }
             if (needMasterForExport) MasterConfirmDialog()
             if (pinDialog) PinSetupDialog()
+            if (addDialog) AddTypeDialog()
         }
     }
 
@@ -501,6 +514,7 @@ class MainActivity : FragmentActivity() {
         val shown = base.filter {
             val byFilter = when (filter) {
                 "fav" -> it.favorite
+                "it" -> EntryTypes.isIt(it.type)
                 "login", "note", "card", "identity" -> it.type == filter
                 else -> true
             }
@@ -522,7 +536,6 @@ class MainActivity : FragmentActivity() {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    TextButton(onClick = { screen = Screen.Prefs }) { Text("إعدادات") }
                     TextButton(onClick = { lockNow() }) { Text("🔒 قفل") }
                 }
                 OutlinedTextField(
@@ -533,7 +546,7 @@ class MainActivity : FragmentActivity() {
                 )
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for ((id, label) in listOf(
-                        "all" to "الكل", "fav" to "⭐ المفضلة", "login" to "🔑 دخول", "note" to "📝 ملاحظات",
+                        "all" to "الكل", "fav" to "⭐ المفضلة", "login" to "🔑 دخول", "it" to "🖥️ IT", "note" to "📝 ملاحظات",
                         "card" to "💳 كروت", "identity" to "🪪 هويات", "trash" to "🗑 المهملات",
                     )) {
                         FilterChip(selected = filter == id, onClick = { filter = id }, label = { Text(label) })
@@ -551,7 +564,7 @@ class MainActivity : FragmentActivity() {
                         Text(
                             when {
                                 inTrash -> "سلة المهملات فاضية"
-                                entries.isEmpty() -> "الخزنة فاضية.\nاضغط \"+ جديد\" وضيف أول عنصر"
+                                entries.isEmpty() -> "الخزنة فاضية.\nاضغط + في النص وضيف أول عنصر"
                                 else -> "مفيش نتائج"
                             },
                             textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -567,12 +580,6 @@ class MainActivity : FragmentActivity() {
                     }
                 }
             }
-            if (!inTrash) {
-                ExtendedFloatingActionButton(
-                    onClick = { screen = Screen.Edit(null) },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-                ) { Text("+ جديد") }
-            }
         }
     }
 
@@ -580,7 +587,11 @@ class MainActivity : FragmentActivity() {
         "note" -> e.notes.lineSequence().firstOrNull { it.isNotBlank() } ?: "—"
         "card" -> e.extra["number"]?.takeIf { it.length >= 4 }?.let { "•••• " + it.takeLast(4) } ?: (e.extra["holder"] ?: "—")
         "identity" -> e.extra["name"] ?: e.extra["email"] ?: "—"
-        else -> e.username.ifBlank { "—" }
+        else -> if (EntryTypes.isIt(e.type)) {
+            listOfNotNull(e.extra["host"] ?: e.extra["ssid"], e.username.takeIf { it.isNotBlank() }).joinToString(" • ").ifBlank { "—" }
+        } else {
+            e.username.ifBlank { "—" }
+        }
     }
 
     @Composable
@@ -595,14 +606,17 @@ class MainActivity : FragmentActivity() {
                 Avatar(e.title)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(e.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        (if (e.type == "login") "" else EntryTypes.of(e.type).emoji + " ") + e.title,
+                        style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         subtitle(e), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
                 if (!inTrash) {
-                    if (e.type == "login") {
+                    if (EntryTypes.hasCreds(e.type)) {
                         if (!e.totpSecret.isNullOrBlank()) {
                             TextButton(onClick = {
                                 val r = Totp.generate(e.totpSecret!!)
@@ -732,6 +746,180 @@ class MainActivity : FragmentActivity() {
     }
 
     @Composable
+    private fun Shell() {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when (tab) {
+                    Tab.Home -> HomeScreen()
+                    Tab.Vault -> VaultScreen()
+                    Tab.Tools -> ToolsScreen()
+                    Tab.Settings -> PrefsScreen()
+                }
+            }
+            BottomBar()
+        }
+    }
+
+    @Composable
+    private fun BottomBar() {
+        Surface(tonalElevation = 3.dp, color = MaterialTheme.colorScheme.surface) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                TabItem(Tab.Home, "🏠", "الرئيسية")
+                TabItem(Tab.Vault, "🗄️", "الخزنة")
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Button(
+                        onClick = { addDialog = true }, shape = CircleShape,
+                        contentPadding = PaddingValues(0.dp), modifier = Modifier.size(56.dp),
+                    ) { Text("+", fontSize = 28.sp) }
+                }
+                TabItem(Tab.Tools, "🧰", "الأدوات")
+                TabItem(Tab.Settings, "⚙️", "الإعدادات")
+            }
+        }
+    }
+
+    @Composable
+    private fun RowScope.TabItem(t: Tab, emoji: String, label: String) {
+        val sel = tab == t
+        Column(
+            Modifier.weight(1f).clickable { tab = t }.padding(vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(emoji)
+            Text(
+                label, style = MaterialTheme.typography.labelSmall,
+                color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+            )
+        }
+    }
+
+    @Composable
+    private fun AddTypeDialog() {
+        AlertDialog(
+            onDismissRequest = { addDialog = false },
+            title = { Text("إضافة عنصر") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    for (t in EntryTypes.all) {
+                        Row(
+                            Modifier.fillMaxWidth().clickable { addDialog = false; screen = Screen.Edit(null, t.id) }.padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(t.emoji)
+                            Spacer(Modifier.width(12.dp))
+                            Text(t.label)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { addDialog = false }) { Text("إلغاء") } },
+        )
+    }
+
+    @Composable
+    private fun HomeScreen() {
+        val rep = remember(entries) { Health.analyze(entries, System.currentTimeMillis()) }
+        val active = entries.filter { it.trashedAt == 0L }
+        val favs = active.filter { it.favorite }.sortedBy { it.title.lowercase() }.take(5)
+        val recent = active.sortedByDescending { it.updatedAt }.take(5)
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LogoMark(48.dp)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "${active.size} عنصر محفوظ", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = { lockNow() }) { Text("🔒 قفل") }
+            }
+            if (active.isEmpty()) {
+                Section("ابدأ من هنا") {
+                    Text("اضغط + في النص وضيف أول عنصر: حساب، جهاز، سيرفر، راوتر، سويتش، فايروول، Wi-Fi، ملاحظة، كارت أو هوية.")
+                }
+            } else {
+                Section("صحة الأمان") {
+                    if (rep.total == 0) {
+                        Text("مفيش باسوردات تتفحص لسه.")
+                    } else {
+                        Text("ضعيفة: ${rep.weak.size}  •  مكررة: ${rep.reused.sumOf { it.size }}  •  قديمة: ${rep.old.size}")
+                        OutlinedButton(onClick = { screen = Screen.Health }) { Text("🩺 فتح التقرير") }
+                    }
+                }
+            }
+            if (favs.isNotEmpty()) {
+                Text("⭐ المفضلة", style = MaterialTheme.typography.titleMedium)
+                favs.forEach { EntryCard(it, false) }
+            }
+            if (recent.isNotEmpty()) {
+                Text("🕘 آخر تعديل", style = MaterialTheme.typography.titleMedium)
+                recent.forEach { EntryCard(it, false) }
+            }
+        }
+    }
+
+    @Composable
+    private fun ToolsScreen() {
+        val ctx = LocalContext.current
+        var len by remember { mutableStateOf(20f) }
+        var sym by remember { mutableStateOf(true) }
+        var gen by remember { mutableStateOf(PasswordGenerator.generate(20, true)) }
+        val withTotp = entries.filter { it.trashedAt == 0L && !it.totpSecret.isNullOrBlank() }
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("الأدوات", style = MaterialTheme.typography.titleLarge)
+
+            Section("مولّد الباسورد") {
+                Text(gen, style = MaterialTheme.typography.titleMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = { gen = PasswordGenerator.generate(len.toInt(), sym) }) { Text("توليد") }
+                    TextButton(onClick = { copySensitive(ctx, "password", gen) }) { Text("نسخ") }
+                    Checkbox(checked = sym, onCheckedChange = { sym = it })
+                    Text("رموز   الطول ${len.toInt()}")
+                }
+                Slider(value = len, onValueChange = { len = it }, valueRange = 8f..48f)
+            }
+
+            Section("المصادقة (TOTP)") {
+                if (withTotp.isEmpty()) {
+                    Text("مفيش حسابات فيها مفتاح TOTP. ضيف المفتاح في حساب من نوع تسجيل دخول.")
+                }
+                withTotp.forEach { e ->
+                    Text(e.title, style = MaterialTheme.typography.labelLarge)
+                    TotpLive(e.totpSecret!!)
+                }
+            }
+
+            Section("صحة الخزنة") {
+                Text("اكتشف الباسوردات الضعيفة والمكررة والقديمة.")
+                OutlinedButton(onClick = { screen = Screen.Health }) { Text("🩺 فتح التقرير") }
+            }
+
+            Section("استيراد وتصدير") {
+                Text("استيراد من Bitwarden (JSON) أو CSV من Chrome / Bitwarden / KeePassXC / LastPass. الملفات دي غير مشفرة، امسحها بعد الاستيراد.")
+                OutlinedButton(onClick = { importEntriesLauncher.launch(arrayOf("*/*")) }) { Text("استيراد JSON / CSV") }
+                OutlinedButton(onClick = { needMasterForExport = true }) { Text("تصدير CSV غير مشفر") }
+            }
+
+            Section("المزامنة اليدوية") {
+                Text("١) استورد ودمج ملف الجهاز التاني  ٢) صدّر الملف المدموج وانقله له.")
+                OutlinedButton(onClick = { mergeLauncher.launch(arrayOf("*/*")) }) { Text("استيراد ودمج ملف") }
+                OutlinedButton(onClick = {
+                    exportLauncher.launch("k2pass-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".vault")
+                }) { Text("تصدير نسخة مشفرة") }
+            }
+        }
+    }
+
+    @Composable
     private fun PrefsScreen() {
         var bioOn by remember { mutableStateOf(store.loadBlob() != null) }
         var pinOn by remember(pinDialog) { mutableStateOf(pinStore.isSet()) }
@@ -753,10 +941,7 @@ class MainActivity : FragmentActivity() {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("الإعدادات", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                TextButton(onClick = { screen = Screen.Vault }) { Text("رجوع") }
-            }
+            Text("الإعدادات", style = MaterialTheme.typography.titleLarge)
 
             Section("الملء التلقائي") {
                 Text("الحالة: " + if (autofillOn) "مُفعّل ✅" else "غير مُفعّل")
@@ -866,27 +1051,8 @@ class MainActivity : FragmentActivity() {
                 }) { Text("تغيير") }
             }
 
-            Section("صحة الخزنة") {
-                Text("اكتشف الباسوردات الضعيفة والمكررة والقديمة.")
-                OutlinedButton(onClick = { screen = Screen.Health }) { Text("🩺 فتح التقرير") }
-            }
-
-            Section("استيراد وتصدير") {
-                Text("استيراد من Bitwarden (JSON) أو CSV من Chrome / Bitwarden / KeePassXC / LastPass. الملفات دي غير مشفرة، امسحها بعد الاستيراد.")
-                OutlinedButton(onClick = { importEntriesLauncher.launch(arrayOf("*/*")) }) { Text("استيراد JSON / CSV") }
-                OutlinedButton(onClick = { needMasterForExport = true }) { Text("تصدير CSV غير مشفر") }
-            }
-
-            Section("المزامنة اليدوية") {
-                Text("١) استورد ودمج ملف الجهاز التاني  ٢) صدّر الملف المدموج وانقله له.")
-                OutlinedButton(onClick = { mergeLauncher.launch(arrayOf("*/*")) }) { Text("استيراد ودمج ملف") }
-                OutlinedButton(onClick = {
-                    exportLauncher.launch("k2pass-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".vault")
-                }) { Text("تصدير نسخة مشفرة") }
-            }
-
             Text(
-                "K2Pass 0.3 — أوفلاين بالكامل",
+                "K2Pass 0.4 — أوفلاين بالكامل",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

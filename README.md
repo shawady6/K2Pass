@@ -3,11 +3,12 @@
 A personal, **offline-first** password manager and digital vault. Android app today (Kotlin + Jetpack Compose); Windows app and browser extension are planned.
 The app has **no INTERNET permission**: it cannot talk to any network. Sync between devices is manual (encrypted file export/import with a deterministic merge).
 
-> Status: **v0.3 debug build, personal use, not security-reviewed, no automated tests.** Use dummy data until you have tested it yourself.
+> Status: **v0.4 debug build, personal use, not security-reviewed, no automated tests.** Use dummy data until you have tested it yourself.
 > The single source of truth for decisions and status is in [`docs/`](docs/) — start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) and [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md).
 
-## What it does today (v0.3)
-- Vault with 4 item types: login, secure note, card, identity. Favorites, 9 fixed categories, search, type filters, trash (30 days), per-item history (20 versions).
+## What it does today (v0.4)
+- Navigation: Home / Vault / Tools / Settings + central Add button.
+- 11 item types: login, device, server, router/MikroTik, switch, firewall, Active Directory, Wi-Fi, secure note, card, identity. Favorites, 9 fixed categories, search, type filters, trash (30 days), per-item history (20 versions).
 - Master password (Argon2id + AES-256-GCM envelope encryption), biometric unlock (Android Keystore), PIN unlock, auto-lock, clipboard auto-clear, screenshot blocking.
 - Android Autofill service: login/sign-up form detection, matching by domain / app package, "save to K2Pass?" and "update password?" prompts, per-site block list, TOTP code copied after fill.
 - TOTP codes (RFC 6238) with countdown. Password generator. Vault health report (weak / reused / old).
@@ -15,12 +16,12 @@ The app has **no INTERNET permission**: it cannot talk to any network. Sync betw
 - Manual sync: import & merge another device's encrypted vault file.
 
 ## Not built yet (see roadmap)
-Windows app, browser extension, IT-specific item types (server / router / switch / firewall / device), Home/Vault/Tools/Settings navigation, custom folders, compromised-password check, encrypted cloud / self-hosted sync, passkeys, attachments, automated tests, release signing.
+Windows app, browser extension, custom folders, real links between credentials, compromised-password check, encrypted cloud / self-hosted sync, passkeys, attachments, automated tests, release signing.
 
 ## Platforms
 | Platform | State |
 |---|---|
-| Android 10+ (minSdk 29, target 35) | Implemented (v0.3, needs device testing) |
+| Android 10+ (minSdk 29, target 35) | Implemented (v0.4, needs device testing) |
 | Windows | Planned |
 | Browser extension | Planned |
 

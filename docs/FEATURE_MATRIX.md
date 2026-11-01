@@ -24,14 +24,14 @@ Paths: `A/` = `app/src/main/java/com/shawady/vault/app/`, `C/` = `vault-core/src
 ## B. IT Vault
 | Feature | Status | Notes |
 |---|---|---|
-| Device / Server / Router / MikroTik / Switch / Firewall / AD types | PLANNED | Not in code. Today these can only be stored as generic logins or notes. Needs new `type` values + `extra` keys (host/IP, mgmt URL, vendor/model, location, related entries) and UI. |
-| Wi-Fi passwords | PLANNED | Storable as login/note; no dedicated type or QR. |
-| Related credentials / linking | PLANNED | — |
+| Device / Server / Router (MikroTik) / Switch / Firewall / Active Directory types | NEEDS TESTING (v0.4, builds in CI only) | `A/EntryTypes.kt`, `A/Editor.kt`. Fields: host/IP, management URL, vendor, model, location, related, domain (AD), username, password, notes. Stored in `Entry.extra` — no format change. Missing: IT-specific password rotation dates, SSH key / port fields, autofill of web admin pages (those are usually `http`, which autofill refuses). |
+| Wi-Fi passwords | NEEDS TESTING (v0.4) | Type `wifi` (SSID, security, password). Missing: QR code share. |
+| Related credentials / linking | PARTIAL | free-text "related" field only; no real links between entries |
 
 ## C. Security Center
 | Feature | Status | Files | Evidence / missing |
 |---|---|---|---|
-| Password generator | IMPLEMENTED | A/Util.kt, Editor.kt | length 8–48, symbols toggle, SecureRandom; no passphrase mode |
+| Password generator | IMPLEMENTED (editor) / NEEDS TESTING (standalone in Tools, v0.4) | A/Util.kt, Editor.kt | length 8–48, symbols toggle, SecureRandom; no passphrase mode |
 | Strength assessment | PARTIAL | A/Health.kt | heuristic only (length, classes, short common list); no live meter in editor; not zxcvbn |
 | Health report (weak/reused/old) | NEEDS TESTING | Health.kt | local-only |
 | Compromised-password check | PLANNED | — | Requires network (HIBP k-anonymity) → conflicts with "no INTERNET"; decision needed (optional, explicit, separate build flavour?) |
@@ -71,7 +71,7 @@ Paths: `A/` = `app/src/main/java/com/shawady/vault/app/`, `C/` = `vault-core/src
 | Android Keystore | IMPLEMENTED (biometric) / NEEDS TESTING (PIN wrap) | |
 | Windows app, Windows Hello | PLANNED | Needs a decision on stack (e.g., Kotlin Multiplatform/JVM, Rust, .NET) sharing the vault file format |
 | Browser extension | PLANNED | |
-| Navigation Home/Vault/Tools/Settings + central Add | PLANNED | UI proposal only |
+| Navigation Home/Vault/Tools/Settings + central Add | NEEDS TESTING (v0.4) | `MainActivity.kt` `Shell`, `BottomBar`, `HomeScreen`, `ToolsScreen`, `AddTypeDialog`; text/emoji icons, no icon library; not looked at on a device |
 | Dark mode | IMPLEMENTED | Theme.kt follows system |
 | Accessibility audit | PLANNED | content descriptions only on eye icon; no TalkBack / font-scale testing |
 
