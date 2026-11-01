@@ -43,7 +43,7 @@ fun CategoryChips(selected: String?, onSelect: (String?) -> Unit, withAll: Boole
             FilterChip(
                 selected = selected == c.id,
                 onClick = { onSelect(c.id) },
-                label = { Text(c.emoji + " " + c.label) },
+                label = { Text(c.label) },
             )
         }
     }

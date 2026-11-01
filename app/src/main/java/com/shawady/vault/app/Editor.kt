@@ -1,5 +1,9 @@
 package com.shawady.vault.app
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -94,7 +98,10 @@ fun EntryEditor(
         if (orig == null && allowTypes) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (t in EntryTypes.all) {
-                    FilterChip(selected = type == t.id, onClick = { type = t.id }, label = { Text(t.emoji + " " + t.label) })
+                    FilterChip(
+                        selected = type == t.id, onClick = { type = t.id }, label = { Text(t.short) },
+                        leadingIcon = { Icon(t.icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    )
                 }
             }
         }
@@ -108,7 +115,7 @@ fun EntryEditor(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = fav, onCheckedChange = { fav = it })
-            Text("⭐ مفضل")
+            Text("مفضل")
         }
 
         Text("الفئة", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -157,7 +164,9 @@ fun EntryEditor(
             modifier = Modifier.fillMaxWidth(),
         )
         if (orig != null && orig.history.isNotEmpty()) {
-            OutlinedButton(onClick = { historyOpen = true }) { Text("🕘 السجل (${orig.history.size} نسخة قديمة)") }
+            OutlinedButton(onClick = { historyOpen = true }) { Icon(K2Icons.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("السجل (${orig.history.size} نسخة قديمة)") }
         }
         err?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
@@ -200,7 +209,7 @@ fun EntryEditor(
             }) { Text(saveLabel) }
             OutlinedButton(onClick = onCancel) { Text("إلغاء") }
             if (onDelete != null) {
-                TextButton(onClick = onDelete) { Text("🗑 للمهملات", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = onDelete) { Text("نقل للمهملات", color = MaterialTheme.colorScheme.error) }
             }
         }
     }

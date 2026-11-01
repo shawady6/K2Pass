@@ -1,5 +1,8 @@
 package com.shawady.vault.app
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+
 /** A form field stored in `Entry.extra` under [key] (card / identity / IT types). */
 class Field(
     val key: String,
@@ -18,7 +21,9 @@ class Field(
 class TypeInfo(
     val id: String,
     val label: String,
-    val emoji: String,
+    val short: String,
+    val icon: ImageVector,
+    val color: Color,
     val fields: List<Field> = emptyList(),
     val creds: Boolean = false,
     val hasUser: Boolean = true,
@@ -37,21 +42,21 @@ object EntryTypes {
     )
 
     val all: List<TypeInfo> = listOf(
-        TypeInfo("login", "تسجيل دخول", "🔑", creds = true),
-        TypeInfo("device", "جهاز (كمبيوتر / لابتوب)", "💻", itCommon, creds = true, isIt = true),
-        TypeInfo("server", "سيرفر (Windows / Linux)", "🖥️", itCommon, creds = true, isIt = true),
-        TypeInfo("router", "راوتر / MikroTik", "📡", itCommon, creds = true, isIt = true),
-        TypeInfo("switch", "سويتش", "🔀", itCommon, creds = true, isIt = true),
-        TypeInfo("firewall", "فايروول (Sophos ...)", "🛡️", itCommon, creds = true, isIt = true),
-        TypeInfo("ad", "Active Directory", "🏢", listOf(Field("domain", "الدومين")) + itCommon, creds = true, isIt = true),
+        TypeInfo("login", "تسجيل دخول", "دخول", K2Icons.Key, Color(0xFFA99BFF), creds = true),
+        TypeInfo("device", "جهاز (كمبيوتر / لابتوب)", "جهاز", K2Icons.Laptop, Color(0xFF6FA8FF), itCommon, creds = true, isIt = true),
+        TypeInfo("server", "سيرفر (Windows / Linux)", "سيرفر", K2Icons.Server, Color(0xFF55CFFF), itCommon, creds = true, isIt = true),
+        TypeInfo("router", "راوتر / MikroTik", "راوتر", K2Icons.Router, Color(0xFF5EE0C4), itCommon, creds = true, isIt = true),
+        TypeInfo("switch", "سويتش", "سويتش", K2Icons.Switch, Color(0xFF8FA6FF), itCommon, creds = true, isIt = true),
+        TypeInfo("firewall", "فايروول (Sophos ...)", "فايروول", K2Icons.Shield, Color(0xFFFF8A9B), itCommon, creds = true, isIt = true),
+        TypeInfo("ad", "Active Directory", "AD", K2Icons.Business, Color(0xFFC39BFF), listOf(Field("domain", "الدومين")) + itCommon, creds = true, isIt = true),
         TypeInfo(
-            "wifi", "Wi-Fi", "📶",
+            "wifi", "Wi-Fi", "Wi-Fi", K2Icons.Wifi, Color(0xFF4FD1FF),
             listOf(Field("ssid", "اسم الشبكة (SSID)"), Field("security", "نوع الأمان (WPA2 / WPA3)"), Field("location", "المكان")),
             creds = true, hasUser = false, isIt = true, passLabel = "باسورد الواي فاي",
         ),
-        TypeInfo("note", "ملاحظة سرية", "📝"),
+        TypeInfo("note", "ملاحظة سرية", "ملاحظة", K2Icons.Note, Color(0xFFFFC76B)),
         TypeInfo(
-            "card", "كارت دفع", "💳",
+            "card", "كارت دفع", "كارت", K2Icons.Card, Color(0xFFFF9F7A),
             listOf(
                 Field("holder", "اسم حامل الكارت"),
                 Field("number", "رقم الكارت", secret = true, numeric = true),
@@ -60,7 +65,7 @@ object EntryTypes {
             ),
         ),
         TypeInfo(
-            "identity", "هوية", "🪪",
+            "identity", "هوية", "هوية", K2Icons.Person, Color(0xFF7BE0A8),
             listOf(
                 Field("name", "الاسم الكامل"),
                 Field("email", "الإيميل"),

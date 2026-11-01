@@ -2,6 +2,13 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-01 — v0.5 (full visual redesign, requested by the owner)
+- **New logo (option B):** padlock with a K keyhole, violet→cyan gradient on a dark tile; new adaptive launcher icon and in-app mark. Supersedes the "keep the logo unchanged" rule.
+- "Glass dark" design system (dark only): midnight gradient background, translucent bordered `GlassCard`s, brand gradient, rounded shapes, floating bottom bar with gradient Add button, hero card on Home.
+- One vector icon set (`K2Icons.kt`) replaces all emoji; per-type icon tiles; IBM Plex Sans Arabic (SIL OFL) bundled as the app font.
+- Status/navigation bar icons set for a dark UI. No change to crypto, storage or vault format.
+- Not device-tested.
+
 ## 2026-11-01 — v0.4.1 (visual polish)
 - Fixed square-looking text fields (Material `extraSmall` shape was the 4 dp default): all shapes now rounded (14/14/18/24/28 dp).
 - One soft text-field style everywhere (`k2FieldColors`), bordered rounded cards, rounded bottom bar with a pill highlight on the active tab, launcher background colour aligned with the in-app logo box (#10152B). Logo drawable unchanged.

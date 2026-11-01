@@ -13,6 +13,11 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Checkbox
@@ -539,19 +544,20 @@ class MainActivity : FragmentActivity() {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    TextButton(onClick = { lockNow() }) { Text("🔒 قفل") }
+                    IconButton(onClick = { lockNow() }) { Icon(K2Icons.LockClosed, contentDescription = "قفل", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 OutlinedTextField(
                     colors = k2FieldColors(),
                     value = q, onValueChange = { q = it },
                     placeholder = { Text("ابحث في حساباتك") },
-                    singleLine = true, shape = RoundedCornerShape(16.dp),
+                    leadingIcon = { Icon(K2Icons.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    singleLine = true, shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for ((id, label) in listOf(
-                        "all" to "الكل", "fav" to "⭐ المفضلة", "login" to "🔑 دخول", "it" to "🖥️ IT", "note" to "📝 ملاحظات",
-                        "card" to "💳 كروت", "identity" to "🪪 هويات", "trash" to "🗑 المهملات",
+                        "all" to "الكل", "fav" to "المفضلة", "login" to "دخول", "it" to "IT", "note" to "ملاحظات",
+                        "card" to "كروت", "identity" to "هويات", "trash" to "المهملات",
                     )) {
                         FilterChip(selected = filter == id, onClick = { filter = id }, label = { Text(label) })
                     }
@@ -601,20 +607,16 @@ class MainActivity : FragmentActivity() {
     @Composable
     private fun EntryCard(e: Entry, inTrash: Boolean) {
         val ctx = LocalContext.current
-        Card(
-            Modifier.fillMaxWidth().clickable { if (inTrash) trashTarget = e else screen = Screen.Edit(e) },
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+        val info = EntryTypes.of(e.type)
+        GlassCard(
+            Modifier.fillMaxWidth(),
+            onClick = { if (inTrash) trashTarget = e else screen = Screen.Edit(e) },
         ) {
-            Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Avatar(e.title)
+            Row(Modifier.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (e.type == "login") Avatar(e.title) else IconTile(info.icon, info.color)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        (if (e.type == "login") "" else EntryTypes.of(e.type).emoji + " ") + e.title,
-                        style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
+                    Text(e.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         subtitle(e), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -626,13 +628,22 @@ class MainActivity : FragmentActivity() {
                             TextButton(onClick = {
                                 val r = Totp.generate(e.totpSecret!!)
                                 if (r != null) copySensitive(ctx, "totp", r.code) else message = "مفتاح TOTP غير صالح"
-                            }) { Text("OTP") }
+                            }, contentPadding = PaddingValues(horizontal = 6.dp)) { Text("OTP") }
                         }
-                        TextButton(onClick = { copySensitive(ctx, "password", e.password) }) { Text("نسخ") }
+                        IconButton(onClick = { copySensitive(ctx, "password", e.password) }, modifier = Modifier.size(40.dp)) {
+                            Icon(K2Icons.Copy, contentDescription = "نسخ الباسورد", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                        }
                     }
-                    TextButton(onClick = { toggleFavorite(e) }) { Text(if (e.favorite) "⭐" else "☆") }
+                    IconButton(onClick = { toggleFavorite(e) }, modifier = Modifier.size(40.dp)) {
+                        Icon(
+                            if (e.favorite) K2Icons.Star else K2Icons.StarOutline,
+                            contentDescription = "مفضل",
+                            tint = if (e.favorite) Color(0xFFFFC76B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 } else {
-                    Text(Categories.of(e.category).emoji, Modifier.padding(end = 12.dp))
+                    Spacer(Modifier.width(10.dp))
                 }
             }
         }
@@ -768,40 +779,43 @@ class MainActivity : FragmentActivity() {
     @Composable
     private fun BottomBar() {
         Surface(
-            tonalElevation = 3.dp, color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp),
+            shape = RoundedCornerShape(30.dp),
+            color = Color(0xFF161D3A).copy(alpha = 0.96f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+            shadowElevation = 12.dp,
         ) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                TabItem(Tab.Home, "🏠", "الرئيسية")
-                TabItem(Tab.Vault, "🗄️", "الخزنة")
+            Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                TabItem(Tab.Home, K2Icons.Home, "الرئيسية")
+                TabItem(Tab.Vault, K2Icons.Vault, "الخزنة")
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Button(
-                        onClick = { addDialog = true }, shape = CircleShape,
-                        contentPadding = PaddingValues(0.dp), modifier = Modifier.size(56.dp),
-                    ) { Text("+", fontSize = 28.sp) }
+                    Box(
+                        Modifier.size(56.dp).clip(CircleShape).background(BrandBrush).clickable { addDialog = true },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(K2Icons.Add, contentDescription = "إضافة", tint = Color(0xFF0E1330), modifier = Modifier.size(30.dp)) }
                 }
-                TabItem(Tab.Tools, "🧰", "الأدوات")
-                TabItem(Tab.Settings, "⚙️", "الإعدادات")
+                TabItem(Tab.Tools, K2Icons.Tools, "الأدوات")
+                TabItem(Tab.Settings, K2Icons.Settings, "الإعدادات")
             }
         }
     }
 
     @Composable
-    private fun RowScope.TabItem(t: Tab, emoji: String, label: String) {
+    private fun RowScope.TabItem(t: Tab, icon: ImageVector, label: String) {
         val sel = tab == t
+        val tint = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         Column(
-            Modifier.weight(1f).clickable { tab = t }.padding(vertical = 4.dp),
+            Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).clickable { tab = t }.padding(vertical = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
                 Modifier.background(
                     if (sel) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                     RoundedCornerShape(16.dp),
-                ).padding(horizontal = 18.dp, vertical = 4.dp),
-            ) { Text(emoji) }
+                ).padding(horizontal = 16.dp, vertical = 4.dp),
+            ) { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp)) }
             Text(
-                label, style = MaterialTheme.typography.labelSmall,
-                color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                label, style = MaterialTheme.typography.labelSmall, color = tint,
                 fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
             )
         }
@@ -811,17 +825,26 @@ class MainActivity : FragmentActivity() {
     private fun AddTypeDialog() {
         AlertDialog(
             onDismissRequest = { addDialog = false },
+            shape = RoundedCornerShape(28.dp),
             title = { Text("إضافة عنصر") },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    for (t in EntryTypes.all) {
-                        Row(
-                            Modifier.fillMaxWidth().clickable { addDialog = false; screen = Screen.Edit(null, t.id) }.padding(vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(t.emoji)
-                            Spacer(Modifier.width(12.dp))
-                            Text(t.label)
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    for (row in EntryTypes.all.chunked(3)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            for (t in row) {
+                                Column(
+                                    Modifier.weight(1f).clip(RoundedCornerShape(18.dp))
+                                        .background(Color.White.copy(alpha = 0.06f))
+                                        .clickable { addDialog = false; screen = Screen.Edit(null, t.id) }
+                                        .padding(vertical = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    IconTile(t.icon, t.color, 44.dp)
+                                    Text(t.short, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                                }
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }
@@ -838,42 +861,59 @@ class MainActivity : FragmentActivity() {
         val recent = active.sortedByDescending { it.updatedAt }.take(5)
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LogoMark(48.dp)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                    Text(
-                        "${active.size} عنصر محفوظ", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF4A3FB5), Color(0xFF1E6FA0))))
+                    .padding(18.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        LogoMark(48.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = Color.White)
+                            Text("${active.size} عنصر محفوظ", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
+                        }
+                        IconButton(onClick = { lockNow() }) { Icon(K2Icons.LockClosed, contentDescription = "قفل", tint = Color.White) }
+                    }
+                    if (rep.total > 0) {
+                        Row(
+                            Modifier.fillMaxWidth().clickable { screen = Screen.Health },
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            StatTile("ضعيفة", rep.weak.size)
+                            StatTile("مكررة", rep.reused.sumOf { it.size })
+                            StatTile("قديمة", rep.old.size)
+                        }
+                    }
                 }
-                TextButton(onClick = { lockNow() }) { Text("🔒 قفل") }
             }
             if (active.isEmpty()) {
                 Section("ابدأ من هنا") {
                     Text("اضغط + في النص وضيف أول عنصر: حساب، جهاز، سيرفر، راوتر، سويتش، فايروول، Wi-Fi، ملاحظة، كارت أو هوية.")
                 }
-            } else {
-                Section("صحة الأمان") {
-                    if (rep.total == 0) {
-                        Text("مفيش باسوردات تتفحص لسه.")
-                    } else {
-                        Text("ضعيفة: ${rep.weak.size}  •  مكررة: ${rep.reused.sumOf { it.size }}  •  قديمة: ${rep.old.size}")
-                        OutlinedButton(onClick = { screen = Screen.Health }) { Text("🩺 فتح التقرير") }
-                    }
-                }
             }
             if (favs.isNotEmpty()) {
-                Text("⭐ المفضلة", style = MaterialTheme.typography.titleMedium)
+                Text("المفضلة", style = MaterialTheme.typography.titleMedium)
                 favs.forEach { EntryCard(it, false) }
             }
             if (recent.isNotEmpty()) {
-                Text("🕘 آخر تعديل", style = MaterialTheme.typography.titleMedium)
+                Text("آخر تعديل", style = MaterialTheme.typography.titleMedium)
                 recent.forEach { EntryCard(it, false) }
             }
+        }
+    }
+
+    @Composable
+    private fun RowScope.StatTile(label: String, n: Int) {
+        Column(
+            Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.14f)).padding(vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("$n", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
         }
     }
 
@@ -913,7 +953,7 @@ class MainActivity : FragmentActivity() {
 
             Section("صحة الخزنة") {
                 Text("اكتشف الباسوردات الضعيفة والمكررة والقديمة.")
-                OutlinedButton(onClick = { screen = Screen.Health }) { Text("🩺 فتح التقرير") }
+                OutlinedButton(onClick = { screen = Screen.Health }) { Text("فتح التقرير") }
             }
 
             Section("استيراد وتصدير") {
@@ -957,7 +997,7 @@ class MainActivity : FragmentActivity() {
             Text("الإعدادات", style = MaterialTheme.typography.titleLarge)
 
             Section("الملء التلقائي") {
-                Text("الحالة: " + if (autofillOn) "مُفعّل ✅" else "غير مُفعّل")
+                Text("الحالة: " + if (autofillOn) "مُفعّل" else "غير مُفعّل")
                 if (!autofillOn) {
                     Button(onClick = {
                         startActivity(
@@ -1066,7 +1106,7 @@ class MainActivity : FragmentActivity() {
             }
 
             Text(
-                "K2Pass 0.4 — أوفلاين بالكامل",
+                "K2Pass 0.5 — أوفلاين بالكامل",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

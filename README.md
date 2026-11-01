@@ -3,10 +3,10 @@
 A personal, **offline-first** password manager and digital vault. Android app today (Kotlin + Jetpack Compose); Windows app and browser extension are planned.
 The app has **no INTERNET permission**: it cannot talk to any network. Sync between devices is manual (encrypted file export/import with a deterministic merge).
 
-> Status: **v0.4 debug build, personal use, not security-reviewed, no automated tests.** Use dummy data until you have tested it yourself.
+> Status: **v0.5 debug build, personal use, not security-reviewed, no automated tests.** Use dummy data until you have tested it yourself.
 > The single source of truth for decisions and status is in [`docs/`](docs/) — start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) and [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md).
 
-## What it does today (v0.4)
+## What it does today (v0.5)
 - Navigation: Home / Vault / Tools / Settings + central Add button.
 - 11 item types: login, device, server, router/MikroTik, switch, firewall, Active Directory, Wi-Fi, secure note, card, identity. Favorites, 9 fixed categories, search, type filters, trash (30 days), per-item history (20 versions).
 - Master password (Argon2id + AES-256-GCM envelope encryption), biometric unlock (Android Keystore), PIN unlock, auto-lock, clipboard auto-clear, screenshot blocking.
@@ -21,7 +21,7 @@ Windows app, browser extension, custom folders, real links between credentials, 
 ## Platforms
 | Platform | State |
 |---|---|
-| Android 10+ (minSdk 29, target 35) | Implemented (v0.4, needs device testing) |
+| Android 10+ (minSdk 29, target 35) | Implemented (v0.5, needs device testing) |
 | Windows | Planned |
 | Browser extension | Planned |
 

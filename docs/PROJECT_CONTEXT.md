@@ -21,7 +21,7 @@ One vault for all credentials: websites, email, social, banking, Wi-Fi, PCs/lapt
 | Sync (now) | Manual: export encrypted vault file → import & merge on the other device. Per-entry UUID; newest `updatedAt` wins; deterministic tie-break; loser kept in history (max 20); deletions are tombstones; merge is commutative and idempotent. |
 | Sync (later) | Wi-Fi/QR local sync and/or optional self-hosted E2E server. Server must only ever hold ciphertext. Not started. |
 | Autofill | Android AutofillService → always authenticate in `AuthActivity` → return datasets. Never fills on `http`. Matches domain/subdomain or `androidapp://package`. |
-| Identity | Name **K2Pass**. Logo = silver shield, blue K, teal V, vault wheel on a navy square (`ic_launcher_foreground.xml`). **Do not change the logo unless the owner asks.** Palette was refreshed by the owner on 2026-11-01 (midnight violet + cyan). |
+| Identity | Name **K2Pass**. Logo (v0.5) = padlock with a K keyhole (`ic_launcher_foreground.xml`). Redesigned at the owner's request in v0.5: padlock-with-K logo (violet→cyan on dark). Do not change it again unless the owner asks. Visual system = "glass dark" (dark only), IBM Plex Sans Arabic, `K2Icons` vector set. |
 | Eye icon | Show/hide icon exists but the owner dislikes its shape; keep until he proposes a design. |
 | Build | AGP 8.7.3, Kotlin 2.0.21, Gradle 8.11.1, Compose BOM 2024.12.01, argon2kt 1.5.0, androidx.biometric 1.1.0. |
 | UI direction | Bottom navigation Home / Vault / Tools / Settings with a central "Add" action listing all entry types. Implemented in v0.4 (needs device review; icons are emoji placeholders to be replaced by proper vector icons). |

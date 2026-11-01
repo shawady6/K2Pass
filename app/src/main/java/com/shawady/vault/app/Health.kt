@@ -65,15 +65,15 @@ fun HealthScreen(entries: List<Entry>, onOpen: (Entry) -> Unit, onBack: () -> Un
             "فُحص ${r.total} حساب. الباسوردات مش بتخرج من الجهاز.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        HealthGroup("⚠️ باسوردات ضعيفة (${r.weak.size})", "قصيرة أو بسيطة أو شائعة", r.weak, onOpen)
-        Section("🔁 باسوردات مكررة (${r.reused.sumOf { it.size }})") {
-            if (r.reused.isEmpty()) Text("لا يوجد ✅", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HealthGroup("باسوردات ضعيفة (${r.weak.size})", "قصيرة أو بسيطة أو شائعة", r.weak, onOpen)
+        Section("باسوردات مكررة (${r.reused.sumOf { it.size }})") {
+            if (r.reused.isEmpty()) Text("لا يوجد", color = MaterialTheme.colorScheme.onSurfaceVariant)
             r.reused.forEachIndexed { i, g ->
                 Text("مجموعة ${i + 1}", style = MaterialTheme.typography.labelLarge)
                 g.forEach { e -> EntryLine(e, onOpen) }
             }
         }
-        HealthGroup("🕰️ باسوردات قديمة (${r.old.size})", "لم تتغير من أكتر من سنة", r.old, onOpen)
+        HealthGroup("باسوردات قديمة (${r.old.size})", "لم تتغير من أكتر من سنة", r.old, onOpen)
     }
 }
 
@@ -81,7 +81,7 @@ fun HealthScreen(entries: List<Entry>, onOpen: (Entry) -> Unit, onBack: () -> Un
 private fun HealthGroup(title: String, hint: String, list: List<Entry>, onOpen: (Entry) -> Unit) {
     Section(title) {
         Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (list.isEmpty()) Text("لا يوجد ✅", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (list.isEmpty()) Text("لا يوجد", color = MaterialTheme.colorScheme.onSurfaceVariant)
         list.forEach { e -> EntryLine(e, onOpen) }
     }
 }
