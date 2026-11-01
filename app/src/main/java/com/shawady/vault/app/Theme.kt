@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
@@ -118,7 +119,10 @@ fun AppTheme(content: @Composable () -> Unit) {
                             center = androidx.compose.ui.geometry.Offset(900f, 0f), radius = 900f,
                         ),
                     ),
-            ) { content() }
+            ) {
+                // The old Surface used to provide the default text colour; without it text fell back to black.
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) { content() }
+            }
         }
     }
 }

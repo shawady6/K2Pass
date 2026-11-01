@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-01 — v0.5.1
+- Fix: text was black on the dark background (default content colour was lost when the root Surface was replaced by a gradient Box).
+
 ## 2026-11-01 — v0.5 (full visual redesign, requested by the owner)
 - **New logo (option B):** padlock with a K keyhole, violet→cyan gradient on a dark tile; new adaptive launcher icon and in-app mark. Supersedes the "keep the logo unchanged" rule.
 - "Glass dark" design system (dark only): midnight gradient background, translucent bordered `GlassCard`s, brand gradient, rounded shapes, floating bottom bar with gradient Add button, hero card on Home.
