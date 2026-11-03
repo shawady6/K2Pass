@@ -9,3 +9,5 @@
 *.jks
 *.keystore
 vault-core.zip
+
+!signing/k2pass.jks
