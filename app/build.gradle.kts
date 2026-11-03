@@ -12,11 +12,26 @@ android {
         applicationId = "com.shawady.vault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.5.1"
+        versionCode = 9
+        versionName = "0.6"
+    }
+
+    // A stable signing key is required for in-app updates (Android only installs an update signed by the same key).
+    // CI provides it through the K2_KEYSTORE_* environment variables; without them the default debug key is used.
+    val ksPath = System.getenv("K2_KEYSTORE_FILE")
+    signingConfigs {
+        if (ksPath != null && file(ksPath).exists()) {
+            create("k2") {
+                storeFile = file(ksPath)
+                storePassword = System.getenv("K2_KEYSTORE_PASSWORD")
+                keyAlias = "k2pass"
+                keyPassword = System.getenv("K2_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
+        debug { signingConfigs.findByName("k2")?.let { signingConfig = it } }
         release { isMinifyEnabled = false }
     }
     buildFeatures { compose = true }

@@ -25,6 +25,20 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
+      - name: Prepare signing key
+        env:
+          KS_B64: ${{ secrets.K2_KEYSTORE_B64 }}
+          KS_PW: ${{ secrets.K2_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$KS_PW" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/k2pass.jks"
+            echo "K2_KEYSTORE_FILE=$RUNNER_TEMP/k2pass.jks" >> "$GITHUB_ENV"
+            echo "K2_KEYSTORE_PASSWORD=$KS_PW" >> "$GITHUB_ENV"
+            echo "HAVE_KEY=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::K2_KEYSTORE_B64 / K2_KEYSTORE_PASSWORD secrets are missing: the APK gets a random debug key and will NOT be published (in-app updates would break)."
+          fi
+
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
@@ -34,14 +48,18 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
       - name: Publish APK as the "latest" release
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && env.HAVE_KEY == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk K2Pass-debug.apk
+          VC=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle.kts)
+          VN=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          SHA=$(sha256sum K2Pass-debug.apk | cut -d' ' -f1)
+          printf 'Debug build of %s\nversionCode: %s\nversionName: %s\nsha256: %s\n' "${GITHUB_SHA::7}" "$VC" "$VN" "$SHA" > notes.txt
           gh release delete latest --cleanup-tag -y || true
           gh release create latest K2Pass-debug.apk \
             --title "K2Pass latest debug build" \
-            --notes "Debug build of ${GITHUB_SHA::7}" \
+            --notes-file notes.txt \
             --target "$GITHUB_SHA" \
             --prerelease

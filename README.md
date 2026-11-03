@@ -1,7 +1,7 @@
 # K2Pass
 
 A personal, **offline-first** password manager and digital vault. Android app today (Kotlin + Jetpack Compose); Windows app and browser extension are planned.
-The app has **no INTERNET permission**: it cannot talk to any network. Sync between devices is manual (encrypted file export/import with a deterministic merge).
+The vault never touches the network; the app uses `INTERNET` only for the manual **Settings → Updates** button. Sync between devices is manual (encrypted file export/import with a deterministic merge).
 
 > Status: **v0.5 debug build, personal use, not security-reviewed, no automated tests.** Use dummy data until you have tested it yourself.
 > The single source of truth for decisions and status is in [`docs/`](docs/) — start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) and [`docs/FEATURE_MATRIX.md`](docs/FEATURE_MATRIX.md).
@@ -43,3 +43,6 @@ Device A **export** → Device B **import & merge** → B **export** → A **imp
 
 ## Roadmap
 See [`docs/ROADMAP.md`](docs/ROADMAP.md). Changes: [`docs/CHANGELOG.md`](docs/CHANGELOG.md). Security design and known gaps: [`docs/SECURITY_ARCHITECTURE.md`](docs/SECURITY_ARCHITECTURE.md).
+
+## Signing & in-app updates (maintainers)
+Updates installed from inside the app require every build to be signed with the **same key**. Add two GitHub Actions secrets (repo → Settings → Secrets and variables → Actions): `K2_KEYSTORE_B64` (base64 of the PKCS12 keystore, alias `k2pass`) and `K2_KEYSTORE_PASSWORD` (store and key password). Without them CI builds but skips publishing the `latest` release. Back up the keystore: if it is lost, users must reinstall once.

@@ -24,7 +24,7 @@ Audit date 2026-11-01, commit `99c014b`. Method: source reading + grep (no crypt
 - Vault file `vault.json` (encrypted) and `.tmp` during atomic write — ciphertext only. Located in app-private `filesDir`.
 - Logs: grep for `Log.`, `println`, `printStackTrace` → **none** in the codebase.
 - Backups: `allowBackup=false` + `data_extraction_rules.xml` excluding cloud backup and device transfer.
-- Network: no `INTERNET` permission (verified in manifest).
+- Network: `INTERNET` is declared since v0.6 and used only by `Updater.kt` after a manual tap (HTTPS GET to api.github.com / github.com release assets, generic User-Agent, no vault data, cleartext disabled). Download is SHA-256-checked against the release notes (integrity only); authenticity comes from Android's same-signer check against the stable signing key. **Risk:** anyone who can publish to the repo (or steal the signing key / GitHub account) can ship an update — protect the GitHub account with 2FA and the signing secrets. Consequence of having `INTERNET`: a future bug or dependency could exfiltrate data; keep network code isolated in `Updater.kt`.
 - Exports: encrypted vault file (safe); plain CSV (contains every secret in clear text — gated by master-password re-entry and a warning; the user chooses the destination via the system file picker). Imported CSV/JSON files stay on the user's storage in clear text; the app cannot delete them.
 - Clipboard: flagged `IS_SENSITIVE` (hides preview on Android 13+ only), cleared after 20 s default (configurable; clearing is a `Handler` timer — lost if the process is killed first).
 - Screens: FLAG_SECURE on by default; user can disable it. `AuthActivity` always secure.
@@ -48,7 +48,7 @@ Audit date 2026-11-01, commit `99c014b`. Method: source reading + grep (no crypt
 3. **No master-password strength check** (length ≥ 10 only) and no strength meter in the editor.
 4. **Vault-key rotation missing** (see §2).
 5. **Wrong-password delay is client-side and in memory** (resets on app restart); Argon2 cost is the real limiter.
-6. **Debug-signed, unminified build**; debuggable flag state not reviewed. Need release signing before wider use.
+6. **Debug-build type, unminified, stable self-managed key (v0.6)**; debuggable flag state not reviewed. Need release signing before wider use.
 7. **Passwords live in Strings** (Compose state, `Entry`) and cannot be zeroed; heap dumps on rooted devices expose them while unlocked.
 8. **Autofill matching without Public Suffix List**; custom-tab/WebView domain reporting depends on the app.
 9. **Plain CSV export/import** leave clear-text files; no secure delete.

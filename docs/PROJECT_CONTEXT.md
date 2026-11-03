@@ -15,7 +15,7 @@ One vault for all credentials: websites, email, social, banking, Wi-Fi, PCs/lapt
 ## 3. Decisions made (do not silently reverse)
 | Decision | Detail |
 |---|---|
-| Offline-first | No INTERNET permission in the Android app. Any future network feature must be opt-in, explicit and documented here first. |
+| Offline-first | Vault operation is fully offline. Since v0.6 the app holds `INTERNET` **only** for the manual update check/download (`Updater.kt`, owner-approved 2026-11-03). No background or automatic network use; any other network feature must be opt-in, explicit and documented here first. |
 | Crypto | Master password → Argon2id (64 MiB, t=3, p=2) → KEK; random 32-byte vault key wrapped by KEK (AES-256-GCM); payload encrypted with vault key. Header (`v|m|t|p|salt`) is AAD. Changing master re-wraps the key only. |
 | Quick unlock | Biometric = Android Keystore AES key (auth required, invalidated on new enrollment) wrapping the vault key. PIN = Argon2id(32 MiB) + Keystore wrap. Both only within 7 days of last master-password unlock. |
 | Sync (now) | Manual: export encrypted vault file → import & merge on the other device. Per-entry UUID; newest `updatedAt` wins; deterministic tie-break; loser kept in history (max 20); deletions are tombstones; merge is commutative and idempotent. |
@@ -23,6 +23,7 @@ One vault for all credentials: websites, email, social, banking, Wi-Fi, PCs/lapt
 | Autofill | Android AutofillService → always authenticate in `AuthActivity` → return datasets. Never fills on `http`. Matches domain/subdomain or `androidapp://package`. |
 | Identity | Name **K2Pass**. Logo (v0.5) = padlock with a K keyhole (`ic_launcher_foreground.xml`). Redesigned at the owner's request in v0.5: padlock-with-K logo (violet→cyan on dark). Do not change it again unless the owner asks. Visual system = "glass dark" (dark only), IBM Plex Sans Arabic, `K2Icons` vector set. |
 | Eye icon | Show/hide icon exists but the owner dislikes its shape; keep until he proposes a design. |
+| Signing / updates | Stable key kept in GitHub secrets (`K2_KEYSTORE_B64`, `K2_KEYSTORE_PASSWORD`); loss of the key means one forced reinstall. Updates come from the public release tag `latest` of `shawady6/K2Pass`. |
 | Build | AGP 8.7.3, Kotlin 2.0.21, Gradle 8.11.1, Compose BOM 2024.12.01, argon2kt 1.5.0, androidx.biometric 1.1.0. |
 | UI direction | Bottom navigation Home / Vault / Tools / Settings with a central "Add" action listing all entry types. Implemented in v0.4 (needs device review; icons are emoji placeholders to be replaced by proper vector icons). |
 

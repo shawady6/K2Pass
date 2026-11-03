@@ -1105,8 +1105,10 @@ class MainActivity : FragmentActivity() {
                 }) { Text("تغيير") }
             }
 
+            UpdateSection()
+
             Text(
-                "K2Pass 0.5 — أوفلاين بالكامل",
+                "K2Pass — الخزنة أوفلاين بالكامل، والإنترنت لزر التحديث فقط",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

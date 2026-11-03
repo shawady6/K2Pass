@@ -89,7 +89,8 @@ Paths: `A/` = `app/src/main/java/com/shawady/vault/app/`, `C/` = `vault-core/src
 | Unit / instrumented tests | PLANNED — none exist |
 | CI build | IMPLEMENTED — `.github/workflows/build-apk.yml`, passing on main |
 | Lint / dependency audit | PLANNED |
-| Release signing, minification | PLANNED — `isMinifyEnabled=false`, debug-signed |
+| Stable signing key (CI secrets) | NEEDS TESTING (v0.6) — required for in-place updates; minification still off |
+| In-app update (manual) | NEEDS TESTING (v0.6) — `A/Updater.kt`; depends on secrets being configured in GitHub |
 | Documentation | IMPLEMENTED — this `docs/` set (2026-11-01) |
 
 ## Corrections to earlier assumptions
