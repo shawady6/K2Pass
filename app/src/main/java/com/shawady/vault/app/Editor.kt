@@ -163,6 +163,7 @@ fun EntryEditor(
             minLines = if (type == "note") 8 else 2,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (type == "note") VoiceSection(extra)
         if (orig != null && orig.history.isNotEmpty()) {
             OutlinedButton(onClick = { historyOpen = true }) { Icon(K2Icons.History, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
@@ -183,7 +184,7 @@ fun EntryEditor(
                     val u = if (isLogin) url.trim() else ""
                     val tp = if (isLogin) totp.trim().ifEmpty { null } else null
                     val keys = info.fields.map { it.key }
-                    val ex: Map<String, String> = extra.filter { it.key in keys && it.value.isNotBlank() }.toMap()
+                    val ex: Map<String, String> = extra.filter { (it.key in keys || (type == "note" && it.key == VOICE_KEY)) && it.value.isNotBlank() }.toMap()
                     val e = if (orig == null) {
                         Entry(
                             id = UUID.randomUUID().toString(), title = t, username = un, password = pw, url = u,
@@ -197,7 +198,7 @@ fun EntryEditor(
                         if (!content && !meta) {
                             orig
                         } else {
-                            val hist = if (content) (listOf(orig.copy(history = emptyList())) + orig.history).take(20) else orig.history
+                            val hist = if (content) (listOf(orig.copy(history = emptyList()).withoutVoice()) + orig.history).take(20) else orig.history
                             orig.copy(
                                 title = t, username = un, password = pw, url = u, notes = notes, totpSecret = tp,
                                 extra = ex, category = cat, favorite = fav, updatedAt = now, history = hist,

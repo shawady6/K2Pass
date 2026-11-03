@@ -140,7 +140,7 @@ class AuthActivity : FragmentActivity() {
             Text("\"${target.title}\" (${target.username}) محفوظ بباسورد مختلف. تحدّثه للباسورد الجديد؟ القديم هيفضل في السجل.")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = {
-                    val hist = (listOf(target.copy(history = emptyList())) + target.history).take(20)
+                    val hist = (listOf(target.copy(history = emptyList()).withoutVoice()) + target.history).take(20)
                     val ne = target.copy(password = savePass, updatedAt = System.currentTimeMillis(), history = hist)
                     if (persist(u, VaultData(u.data.entries.filter { it.id != target.id } + ne))) {
                         Toast.makeText(this@AuthActivity, "اتحدّث الباسورد", Toast.LENGTH_SHORT).show()

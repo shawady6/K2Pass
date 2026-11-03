@@ -2,6 +2,12 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-03 — v0.7 (voice notes)
+- Secret notes can hold one voice recording (max 2 min, AAC mono 16 kHz/32 kbps, ~0.5 MB/min).
+- Stored as Base64 in `Entry.extra["voice"]` — inside the encrypted vault, no vault-format change. History copies drop the audio to avoid bloat.
+- New permission `RECORD_AUDIO` (asked on first recording). Temp plaintext files in cacheDir are deleted right after use.
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-03 — v0.6 (in-app update)
 - Settings → Updates: "check for update" / download / install, from the public GitHub release `latest` (`Updater.kt`). Only runs when the user taps the button; verifies SHA-256 from the release notes; Android enforces same-signature on install.
 - **Decision change (owner-approved 2026-11-03):** the app now declares `INTERNET` (updater only) and `REQUEST_INSTALL_PACKAGES`; cleartext traffic disabled. FileProvider added for the downloaded APK (cache dir).
