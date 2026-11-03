@@ -2,6 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-03 — v0.8 (folders + settings tidy)
+- Custom folders: "+ فولدر جديد" chip in the editor; folders appear as chips in the vault filter. Stored as `category = "f:<name>"` (no vault-format change). Limitation: a folder with no items disappears; no rename yet.
+- Settings: master-password change is collapsed behind a button.
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-03 — v0.7 (voice notes)
 - Secret notes can hold one voice recording (max 2 min, AAC mono 16 kHz/32 kbps, ~0.5 MB/min).
 - Stored as Base64 in `Entry.extra["voice"]` — inside the encrypted vault, no vault-format change. History copies drop the audio to avoid bloat.

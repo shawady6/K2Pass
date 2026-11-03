@@ -981,6 +981,7 @@ class MainActivity : FragmentActivity() {
         var blockScr by remember { mutableStateOf(prefs.blockScreens) }
         var copyTotp by remember { mutableStateOf(prefs.copyTotp) }
         var blocked by remember { mutableStateOf(prefs.blockedDomains) }
+        var pwOpen by remember { mutableStateOf(false) }
         var cur by remember { mutableStateOf("") }
         var new1 by remember { mutableStateOf("") }
         var new2 by remember { mutableStateOf("") }
@@ -1063,7 +1064,10 @@ class MainActivity : FragmentActivity() {
                     Text("منع لقطات الشاشة", Modifier.weight(1f))
                     Switch(checked = blockScr, onCheckedChange = { blockScr = it; prefs.blockScreens = it; applyScreenFlag() })
                 }
-                Text("تغيير الماستر باسورد", style = MaterialTheme.typography.titleSmall)
+                OutlinedButton(onClick = { pwOpen = !pwOpen }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (pwOpen) "إخفاء تغيير الماستر باسورد" else "تغيير الماستر باسورد")
+                }
+                if (pwOpen) {
                 PasswordField("الحالي", cur, !busy) { cur = it }
                 PasswordField("الجديد (10 حروف على الأقل)", new1, !busy) { new1 = it }
                 PasswordField("تأكيد الجديد", new2, !busy) { new2 = it }
@@ -1103,6 +1107,7 @@ class MainActivity : FragmentActivity() {
                         }
                     }
                 }) { Text("تغيير") }
+                }
             }
 
             UpdateSection()

@@ -119,7 +119,7 @@ fun EntryEditor(
         }
 
         Text("الفئة", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        CategoryChips(selected = cat, onSelect = { id -> if (id != null) cat = id }, withAll = false)
+        CategoryChips(selected = cat, onSelect = { id -> if (id != null) cat = id }, withAll = false, allowNewFolder = true)
 
         if (info.isIt) for (f in info.fields) ExtraField(f, extra, shown)
 
