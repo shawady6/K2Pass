@@ -42,6 +42,8 @@ Audit date 2026-11-01, commit `99c014b`. Method: source reading + grep (no crypt
 | Malicious vault file imported for merge | Must decrypt with a known password; payload parsing via org.json (no schema validation beyond required keys) |
 | Supply chain | Few deps; not pinned/audited; GitHub-built debug APK, not reproducible, not signed with a release key |
 
+- Signing key: `signing/k2pass.jks` is committed to the (public) repo, encrypted with a random 28-char password held only in the GitHub secret `K2_KEYSTORE_PASSWORD`. Security of update authenticity therefore rests on that password and on the GitHub account. Safer alternative: move the keystore into the `K2_KEYSTORE_B64` secret and delete the file.
+
 ## 5. Security gaps (ordered)
 1. **No tests** for crypto, merge, TOTP, PIN, importers. Add RFC 6238 vectors, Argon2/AES round-trips, tamper tests, merge property tests.
 2. **PIN design**: minimum 6 digits and an attempt counter kept in SharedPreferences (resettable by anyone who can edit app data). Mitigated by the non-auth Keystore wrap and Argon2, but PIN-only entropy is low; consider requiring biometric as a second factor or lengthening. NEEDS TESTING.

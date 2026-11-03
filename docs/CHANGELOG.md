@@ -7,6 +7,7 @@ Derived from the Git history (`git log`). Dates are commit dates. Pre-release de
 - **Decision change (owner-approved 2026-11-03):** the app now declares `INTERNET` (updater only) and `REQUEST_INSTALL_PACKAGES`; cleartext traffic disabled. FileProvider added for the downloaded APK (cache dir).
 - CI: stable signing key from GitHub secrets `K2_KEYSTORE_B64` + `K2_KEYSTORE_PASSWORD` (alias `k2pass`). Without them CI still builds but does **not** publish the release. Release notes now carry `versionCode`, `versionName`, `sha256`.
 - **One-time migration:** builds before v0.6 were signed with a random per-build debug key, so they cannot be updated in place; the first v0.6 install requires uninstalling the old app (export the encrypted vault first and import it back).
+- CI signing: keystore committed encrypted at `signing/k2pass.jks`, password from secret `K2_KEYSTORE_PASSWORD` (the base64 secret is optional).
 - Repo `shawady6/K2Pass` is now public (observed 2026-11-03), so the updater needs no token.
 
 ## 2026-11-01 — v0.5.1

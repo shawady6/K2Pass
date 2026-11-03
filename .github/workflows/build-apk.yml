@@ -30,13 +30,19 @@ jobs:
           KS_B64: ${{ secrets.K2_KEYSTORE_B64 }}
           KS_PW: ${{ secrets.K2_KEYSTORE_PASSWORD }}
         run: |
-          if [ -n "$KS_B64" ] && [ -n "$KS_PW" ]; then
-            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/k2pass.jks"
+          # The keystore itself comes from the K2_KEYSTORE_B64 secret if present, otherwise from signing/k2pass.jks
+          # (PKCS12, protected by a 28-character random password that exists only in the K2_KEYSTORE_PASSWORD secret).
+          if [ -n "$KS_PW" ]; then
+            if [ -n "$KS_B64" ]; then
+              echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/k2pass.jks"
+            else
+              cp signing/k2pass.jks "$RUNNER_TEMP/k2pass.jks"
+            fi
             echo "K2_KEYSTORE_FILE=$RUNNER_TEMP/k2pass.jks" >> "$GITHUB_ENV"
             echo "K2_KEYSTORE_PASSWORD=$KS_PW" >> "$GITHUB_ENV"
             echo "HAVE_KEY=true" >> "$GITHUB_ENV"
           else
-            echo "::warning::K2_KEYSTORE_B64 / K2_KEYSTORE_PASSWORD secrets are missing: the APK gets a random debug key and will NOT be published (in-app updates would break)."
+            echo "::warning::K2_KEYSTORE_PASSWORD secret is missing: the APK gets a random debug key and will NOT be published (in-app updates would break)."
           fi
 
       - name: Build debug APK
