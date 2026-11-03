@@ -32,12 +32,15 @@ jobs:
         run: |
           # The keystore itself comes from the K2_KEYSTORE_B64 secret if present, otherwise from signing/k2pass.jks
           # (PKCS12, protected by a 28-character random password that exists only in the K2_KEYSTORE_PASSWORD secret).
+          KS_PW=$(printf '%s' "$KS_PW" | tr -d '\r\n[:space:]')   # a pasted secret may carry a trailing newline
           if [ -n "$KS_PW" ]; then
             if [ -n "$KS_B64" ]; then
               echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/k2pass.jks"
             else
               cp signing/k2pass.jks "$RUNNER_TEMP/k2pass.jks"
             fi
+            keytool -list -keystore "$RUNNER_TEMP/k2pass.jks" -storepass "$KS_PW" -alias k2pass > /dev/null \
+              || { echo "::error::K2_KEYSTORE_PASSWORD does not open the keystore (wrong password?)"; exit 1; }
             echo "K2_KEYSTORE_FILE=$RUNNER_TEMP/k2pass.jks" >> "$GITHUB_ENV"
             echo "K2_KEYSTORE_PASSWORD=$KS_PW" >> "$GITHUB_ENV"
             echo "HAVE_KEY=true" >> "$GITHUB_ENV"
