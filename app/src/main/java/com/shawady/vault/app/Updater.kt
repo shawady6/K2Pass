@@ -149,7 +149,6 @@ fun UpdateSection() {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf<String?>(null) }
-    var info by remember { mutableStateOf<Updater.Info?>(null) }
     var busy by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf<Float?>(null) }
     var ready by remember { mutableStateOf<File?>(null) }
@@ -164,44 +163,35 @@ fun UpdateSection() {
         status?.let { Text(it) }
         progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(enabled = !busy, onClick = {
-                busy = true; status = "بفحص آخر إصدار..."; info = null; ready = null; progress = null
+            Button(enabled = !busy, onClick = {
+                busy = true; status = "بفحص آخر إصدار..."; ready = null; progress = null
                 scope.launch {
                     try {
                         val i = withContext(Dispatchers.IO) { Updater.fetchLatest() }
                         if (i.versionCode > current) {
-                            info = i
-                            status = "في إصدار جديد: ${i.versionName} (${i.versionCode})"
+                            status = "في إصدار جديد ${i.versionName}. بنزّله..."; progress = 0f
+                            val f = withContext(Dispatchers.IO) { Updater.download(ctx, i) { p -> progress = p } }
+                            ready = f
+                            if (Updater.needsInstallPermission(ctx)) {
+                                status = "اسمح لـ K2Pass بتثبيت التطبيقات من الشاشة اللي اتفتحت، وارجع دوس \"تثبيت\"."
+                            } else {
+                                status = "التحميل اتأكد منه. أكّد التثبيت من شاشة أندرويد."
+                                Updater.launchInstaller(ctx, f)
+                            }
                         } else {
                             status = "أنت على آخر إصدار."
                         }
                     } catch (e: Exception) {
-                        status = "تعذر الفحص: " + (e.message ?: "خطأ في الاتصال")
+                        status = "تعذر التحديث: " + (e.message ?: "خطأ في الاتصال")
                     }
+                    progress = null
                     busy = false
                 }
-            }) { Text("تحقق من تحديث") }
+            }) { Text("تحقق وحدّث") }
 
-            val i = info
-            if (i != null && ready == null) {
-                Button(enabled = !busy, onClick = {
-                    busy = true; status = "بنزّل ${i.versionName}..."; progress = 0f
-                    scope.launch {
-                        try {
-                            val f = withContext(Dispatchers.IO) { Updater.download(ctx, i) { p -> progress = p } }
-                            ready = f
-                            status = "التحميل اتأكد منه. دوس \"تثبيت\"."
-                        } catch (e: Exception) {
-                            status = "تعذر التحميل: " + (e.message ?: "خطأ")
-                        }
-                        progress = null
-                        busy = false
-                    }
-                }) { Text("تنزيل التحديث") }
-            }
             val f = ready
             if (f != null) {
-                Button(onClick = {
+                OutlinedButton(onClick = {
                     if (Updater.needsInstallPermission(ctx)) {
                         status = "اسمح لـ K2Pass بتثبيت التطبيقات من الشاشة اللي اتفتحت، وارجع دوس \"تثبيت\" تاني."
                     } else {

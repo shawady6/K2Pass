@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-04 — v1.1.1 (one-tap update)
+- "تحقق وحدّث": one button checks, downloads, SHA-256-verifies and opens the Android installer (the final confirmation screen is enforced by Android and cannot be skipped). A separate "تثبيت" button appears only if the install-permission screen interrupted the flow.
+
 ## 2026-11-04 — v1.1 (read-only view, bulk folder ops, two copy buttons)
 - Tapping an item opens a **read-only view** (copy + show/hide secrets, live TOTP, voice playback). Editing only through the "تعديل" button; back from edit returns to the view.
 - Inside a folder: **"+ إضافة عناصر"** (multi-select picker, no-folder items first, search, select all) and **"إزالة عناصر"** (multi-select) — no more one-by-one.
