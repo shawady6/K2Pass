@@ -2,6 +2,13 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-04 — v0.9 (main folders replace filters)
+- Removed the type-chip row and the category-chip row. One "📂 الفولدرات" button in the vault opens a dialog: الكل / المفضلة / المهملات + user folders (create, rename, delete, counts).
+- Folder = vault entry `type="folder"` (title = name), so it is encrypted, synced, and persists while empty. Items use `category = "f:<folderId>"`. Deleting a folder keeps its items (moved to no folder). Folder entries are hidden from lists, stats, health and CSV export.
+- Editor: "الفولدر" picker button (old fixed categories are no longer shown; old values are kept in data but ignored).
+- v0.8 chip-based folders (`f:<name>`) are superseded; they will not show up as folders (items appear under "الكل").
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-03 — v0.8 (folders + settings tidy)
 - Custom folders: "+ فولدر جديد" chip in the editor; folders appear as chips in the vault filter. Stored as `category = "f:<name>"` (no vault-format change). Limitation: a folder with no items disappears; no rename yet.
 - Settings: master-password change is collapsed behind a button.

@@ -118,8 +118,8 @@ fun EntryEditor(
             Text("مفضل")
         }
 
-        Text("الفئة", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        CategoryChips(selected = cat, onSelect = { id -> if (id != null) cat = id }, withAll = false, allowNewFolder = true)
+        Text("الفولدر", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FolderPicker(selected = cat, onSelect = { cat = it })
 
         if (info.isIt) for (f in info.fields) ExtraField(f, extra, shown)
 

@@ -107,6 +107,7 @@ class MainActivity : FragmentActivity() {
     private var tab by mutableStateOf(Tab.Home)
     private var addDialog by mutableStateOf(false)
     private var entries by mutableStateOf<List<Entry>>(emptyList())
+    private var folders by mutableStateOf<List<Entry>>(emptyList())
     private var message by mutableStateOf<String?>(null)
     private var pendingRemote by mutableStateOf<VaultCrypto.VaultFile?>(null)
     private var resumeTick by mutableStateOf(0)
@@ -169,7 +170,7 @@ class MainActivity : FragmentActivity() {
         registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
             if (uri != null) {
                 try {
-                    val list = Session.data?.entries?.filter { !it.deleted && it.trashedAt == 0L } ?: emptyList()
+                    val list = Session.data?.entries?.filter { !it.deleted && it.trashedAt == 0L && it.type != Folders.TYPE } ?: emptyList()
                     contentResolver.openOutputStream(uri, "wt")?.use { it.write(Importer.toCsv(list).toByteArray(Charsets.UTF_8)) }
                     message = "اتصدّر ${list.size} عنصر كنص عادي غير مشفر. امسح الملف أول ما تخلص!"
                 } catch (e: Exception) {
@@ -225,8 +226,9 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun refreshEntries() {
+        folders = Folders.list(Session.data?.entries)
         entries = Session.data?.entries
-            ?.filter { !it.deleted }
+            ?.filter { !it.deleted && it.type != Folders.TYPE }
             ?.sortedBy { it.title.lowercase() }
             ?: emptyList()
     }
@@ -274,6 +276,28 @@ class MainActivity : FragmentActivity() {
         Session.persist(store, VaultData(d.entries.filter { it.id != e.id } + e))
         refreshEntries()
         screen = Screen.Vault
+    }
+
+    private fun createFolder(name: String) {
+        val d = Session.data ?: return
+        val f = Entry(id = java.util.UUID.randomUUID().toString(), title = name, username = "", password = "",
+            updatedAt = System.currentTimeMillis(), type = Folders.TYPE)
+        Session.persist(store, VaultData(d.entries + f)); refreshEntries()
+    }
+
+    private fun renameFolder(f: Entry, name: String) {
+        val d = Session.data ?: return
+        Session.persist(store, VaultData(d.entries.filter { it.id != f.id } + f.copy(title = name, updatedAt = System.currentTimeMillis())))
+        refreshEntries()
+    }
+
+    private fun deleteFolder(f: Entry) {
+        val d = Session.data ?: return
+        val now = System.currentTimeMillis()
+        val key = Folders.catOf(f)
+        val moved = d.entries.map { if (!it.deleted && it.category == key) it.copy(category = "other", updatedAt = now) else it }
+        Session.persist(store, VaultData(moved.filter { it.id != f.id } + tombstone(f, now)))
+        refreshEntries()
     }
 
     /** Edit-screen delete = move to trash (restorable for 30 days). */
@@ -514,22 +538,34 @@ class MainActivity : FragmentActivity() {
     @Composable
     private fun VaultScreen() {
         var q by remember { mutableStateOf("") }
-        var cat by remember { mutableStateOf<String?>(null) }
         var filter by remember { mutableStateOf("all") }
+        var folderDlg by remember { mutableStateOf(false) }
         val inTrash = filter == "trash"
         val active = entries.filter { it.trashedAt == 0L }
         val base = if (inTrash) entries.filter { it.trashedAt > 0L } else active
         val shown = base.filter {
-            val byFilter = when (filter) {
-                "fav" -> it.favorite
-                "it" -> EntryTypes.isIt(it.type)
-                "login", "note", "card", "identity" -> it.type == filter
+            val byFilter = when {
+                filter == "fav" -> it.favorite
+                filter.startsWith(Folders.PREFIX) -> it.category == filter
                 else -> true
             }
-            byFilter && (inTrash || cat == null || it.category == cat) &&
+            byFilter &&
                 (q.isBlank() || it.title.contains(q, true) || it.username.contains(q, true) || it.url.contains(q, true))
         }.sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.thenBy { it.title.lowercase() })
         Box(Modifier.fillMaxSize()) {
+            if (folderDlg) {
+                FolderDialog(
+                    folders = folders,
+                    counts = active.groupBy { it.category }.mapValues { it.value.size },
+                    favCount = active.count { it.favorite },
+                    trashCount = entries.count { it.trashedAt > 0L },
+                    totalCount = active.size,
+                    filter = filter, onFilter = { filter = it },
+                    onCreate = { createFolder(it) }, onRename = { f, n -> renameFolder(f, n) },
+                    onDelete = { f -> if (filter == Folders.catOf(f)) filter = "all"; deleteFolder(f) },
+                    onClose = { folderDlg = false },
+                )
+            }
             Column(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -554,15 +590,15 @@ class MainActivity : FragmentActivity() {
                     singleLine = true, shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for ((id, label) in listOf(
-                        "all" to "الكل", "fav" to "المفضلة", "login" to "دخول", "it" to "IT", "note" to "ملاحظات",
-                        "card" to "كروت", "identity" to "هويات", "trash" to "المهملات",
-                    )) {
-                        FilterChip(selected = filter == id, onClick = { filter = id }, label = { Text(label) })
+                OutlinedButton(onClick = { folderDlg = true }, modifier = Modifier.fillMaxWidth()) {
+                    val fname = when {
+                        filter == "all" -> "الكل"
+                        filter == "fav" -> "المفضلة"
+                        filter == "trash" -> "المهملات"
+                        else -> Folders.nameOf(filter, folders) ?: "الكل"
                     }
+                    Text("📂 الفولدرات: $fname")
                 }
-                if (!inTrash) CategoryChips(selected = cat, onSelect = { cat = it }, withAll = true)
                 if (inTrash) {
                     Text(
                         "العناصر هنا بتتمسح نهائيًا بعد 30 يوم. اضغط على عنصر للاسترجاع أو الحذف.",
