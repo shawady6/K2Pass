@@ -2,6 +2,10 @@
 
 Priorities: security and correctness first, features second. Each phase ends with acceptance criteria; update `FEATURE_MATRIX.md` and `CHANGELOG.md` in the same commit.
 
+## Backlog from the v1.2 review (owner: "test for a week, then fix everything")
+Known bug (owner-reported, 2026-11-04): opening an item from inside a folder and then leaving it returns to the vault root (sections), not to the folder list the user came from. Fix: keep `filter`/scroll state outside `VaultScreen` (hoist to the activity) so View/Edit → back restores the folder.
+Review items (priority order): 1) unsaved-changes warning when leaving the editor; 2) unit tests (crypto, merge, TOTP, importer) in CI; 3) move signing key out of the public repo into the B64 secret; 4) search across notes / IT fields / folder names; 5) unify the editor's old generator with the Generator tab engine (`Gen`); 6) split `MainActivity.kt` (1256 lines); 7) master-password attempt limiting; 8) accessibility (missing content descriptions, TalkBack, font scale); 9) clean orphan categories / v0.8 folders; 10) RTL/LTR handling for URLs and passwords; 11) UX: sorting, swipe actions, clone item, backup reminder, idle auto-lock, password-strength meter, empty-state import shortcut; 12) features: TOTP QR scan (camera), URL match options, re-prompt master for sensitive items, attachments, breach report (needs network decision), auto-sync + Windows (architecture decision first).
+
 ## Phase 0 — Verify what exists (NEXT)
 - Install the `latest` APK, test v0.3 end to end on the Android 10 phone with dummy data.
 - Fix defects found; re-classify features in FEATURE_MATRIX from NEEDS TESTING.
