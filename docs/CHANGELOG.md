@@ -2,6 +2,13 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-04 — v1.0 (Bitwarden-style features, K2Pass look)
+- New **Generator tab** (replaces the Home tab): Password (length slider, A-Z/a-z/0-9/symbols, avoid ambiguous), Passphrase (EFF Long wordlist bundled offline in `res/raw/wordlist.txt`, 3–10 words, separator, capitalize, number), Username (plus-addressed email, catch-all, random words). Digits blue / symbols pink, regenerate + copy, "create item with result". Options persist in a local prefs file (no secrets). Wordlist: EFF Long (CC BY 3.0).
+- **Vault screen** now sectioned: health tiles, الأنواع (all / favorites / login / IT / notes / cards / identities / SSH / trash with counts), الفولدرات with counts, بدون فولدر list. Tapping a row opens that list (back button / system back returns). Search works across everything.
+- New item type **SSH key** (host, private key, public key, fingerprint, passphrase).
+- Home tab removed; favorites/recents are reachable via the sections.
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-04 — v0.9 (main folders replace filters)
 - Removed the type-chip row and the category-chip row. One "📂 الفولدرات" button in the vault opens a dialog: الكل / المفضلة / المهملات + user folders (create, rename, delete, counts).
 - Folder = vault entry `type="folder"` (title = name), so it is encrypted, synced, and persists while empty. Items use `category = "f:<folderId>"`. Deleting a folder keeps its items (moved to no folder). Folder entries are hidden from lists, stats, health and CSV export.

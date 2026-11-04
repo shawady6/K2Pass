@@ -87,13 +87,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-enum class Tab { Home, Vault, Tools, Settings }
+enum class Tab { Vault, Generator, Tools, Settings }
 
 sealed interface Screen {
     data object Setup : Screen
     data object Unlock : Screen
     data object Vault : Screen
-    data class Edit(val entry: Entry?, val newType: String = "login") : Screen
+    data class Edit(val entry: Entry?, val newType: String = "login", val prefill: Entry? = null) : Screen
     data object Health : Screen
 }
 
@@ -104,7 +104,7 @@ class MainActivity : FragmentActivity() {
     private val pinStore by lazy { PinStore(applicationContext) }
 
     private var screen by mutableStateOf<Screen>(Screen.Unlock)
-    private var tab by mutableStateOf(Tab.Home)
+    private var tab by mutableStateOf(Tab.Vault)
     private var addDialog by mutableStateOf(false)
     private var entries by mutableStateOf<List<Entry>>(emptyList())
     private var folders by mutableStateOf<List<Entry>>(emptyList())
@@ -404,7 +404,7 @@ class MainActivity : FragmentActivity() {
                                 Session.open(f, k)
                                 purgeTrash()
                                 refreshEntries()
-                                tab = Tab.Home
+                                tab = Tab.Vault
                                 screen = Screen.Vault
                             } catch (e: Exception) {
                                 k.fill(0)
@@ -416,6 +416,7 @@ class MainActivity : FragmentActivity() {
                     is Screen.Edit -> EntryEditor(
                         heading = if (s.entry == null) "عنصر جديد" else "تعديل",
                         orig = s.entry,
+                        prefill = s.prefill,
                         initialType = s.newType,
                         onSave = { saveEntry(it) },
                         onCancel = { screen = Screen.Vault },
@@ -538,94 +539,193 @@ class MainActivity : FragmentActivity() {
     @Composable
     private fun VaultScreen() {
         var q by remember { mutableStateOf("") }
-        var filter by remember { mutableStateOf("all") }
+        // "" = root sections; "all", "fav", "trash", "t:<type>", "t:it", or a folder category "f:<id>"
+        var filter by remember { mutableStateOf("") }
         var folderDlg by remember { mutableStateOf(false) }
-        val inTrash = filter == "trash"
         val active = entries.filter { it.trashedAt == 0L }
-        val base = if (inTrash) entries.filter { it.trashedAt > 0L } else active
-        val shown = base.filter {
-            val byFilter = when {
-                filter == "fav" -> it.favorite
-                filter.startsWith(Folders.PREFIX) -> it.category == filter
-                else -> true
-            }
-            byFilter &&
-                (q.isBlank() || it.title.contains(q, true) || it.username.contains(q, true) || it.url.contains(q, true))
-        }.sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.thenBy { it.title.lowercase() })
+        val trashed = entries.filter { it.trashedAt > 0L }
+        val inTrash = filter == "trash"
+        val searching = q.isNotBlank()
+        val rep = remember(entries) { Health.analyze(entries, System.currentTimeMillis()) }
+        androidx.activity.compose.BackHandler(enabled = filter != "" && !searching) { filter = "" }
+
+        fun inSection(e: Entry): Boolean = when {
+            filter == "all" || filter == "" -> true
+            filter == "fav" -> e.favorite
+            filter == "t:it" -> EntryTypes.isIt(e.type) && e.type != "ssh"
+            filter.startsWith("t:") -> e.type == filter.removePrefix("t:")
+            filter.startsWith(Folders.PREFIX) -> e.category == filter
+            else -> true
+        }
+        val pool = if (inTrash) trashed else active
+        val matchQ: (Entry) -> Boolean = {
+            it.title.contains(q, true) || it.username.contains(q, true) || it.url.contains(q, true)
+        }
+        val listMode = searching || filter != ""
+        val shown = if (!listMode) emptyList() else pool.filter { (searching || inTrash || inSection(it)) && (!searching || matchQ(it)) }
+            .sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.thenBy { it.title.lowercase() })
+        val noFolder = active.filter { Folders.nameOf(it.category, folders) == null }
+            .sortedWith(compareByDescending<Entry> { it.favorite }.thenBy { it.title.lowercase() })
+        val typeRows = listOf(
+            Triple("t:login", "دخول", active.count { it.type == "login" }),
+            Triple("t:it", "IT (أجهزة وشبكات)", active.count { EntryTypes.isIt(it.type) && it.type != "ssh" }),
+            Triple("t:note", "ملاحظات سرية", active.count { it.type == "note" }),
+            Triple("t:card", "كروت", active.count { it.type == "card" }),
+            Triple("t:identity", "هويات", active.count { it.type == "identity" }),
+            Triple("t:ssh", "مفاتيح SSH", active.count { it.type == "ssh" }),
+        )
+        val title = when {
+            filter == "all" -> "كل العناصر"
+            filter == "fav" -> "المفضلة"
+            filter == "trash" -> "المهملات"
+            filter.startsWith("t:") -> typeRows.firstOrNull { it.first == filter }?.second ?: "الأنواع"
+            filter.startsWith(Folders.PREFIX) -> "📂 " + (Folders.nameOf(filter, folders) ?: "فولدر")
+            else -> "K2Pass"
+        }
         Box(Modifier.fillMaxSize()) {
             if (folderDlg) {
                 FolderDialog(
                     folders = folders,
                     counts = active.groupBy { it.category }.mapValues { it.value.size },
                     favCount = active.count { it.favorite },
-                    trashCount = entries.count { it.trashedAt > 0L },
+                    trashCount = trashed.size,
                     totalCount = active.size,
                     filter = filter, onFilter = { filter = it },
                     onCreate = { createFolder(it) }, onRename = { f, n -> renameFolder(f, n) },
-                    onDelete = { f -> if (filter == Folders.catOf(f)) filter = "all"; deleteFolder(f) },
+                    onDelete = { f -> if (filter == Folders.catOf(f)) filter = ""; deleteFolder(f) },
                     onClose = { folderDlg = false },
                 )
             }
-            Column(
+            LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
             ) {
-                Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LogoMark(44.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                        Text(
-                            "${active.size} عنصر", style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (filter != "") {
+                            IconButton(onClick = { filter = "" }) { Icon(K2Icons.Back, contentDescription = "رجوع", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        } else {
+                            LogoMark(44.dp); Spacer(Modifier.width(10.dp))
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                            Text("${active.size} عنصر", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { lockNow() }) { Icon(K2Icons.LockClosed, contentDescription = "قفل", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
-                    IconButton(onClick = { lockNow() }) { Icon(K2Icons.LockClosed, contentDescription = "قفل", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
-                OutlinedTextField(
-                    colors = k2FieldColors(),
-                    value = q, onValueChange = { q = it },
-                    placeholder = { Text("ابحث في حساباتك") },
-                    leadingIcon = { Icon(K2Icons.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    singleLine = true, shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedButton(onClick = { folderDlg = true }, modifier = Modifier.fillMaxWidth()) {
-                    val fname = when {
-                        filter == "all" -> "الكل"
-                        filter == "fav" -> "المفضلة"
-                        filter == "trash" -> "المهملات"
-                        else -> Folders.nameOf(filter, folders) ?: "الكل"
-                    }
-                    Text("📂 الفولدرات: $fname")
-                }
-                if (inTrash) {
-                    Text(
-                        "العناصر هنا بتتمسح نهائيًا بعد 30 يوم. اضغط على عنصر للاسترجاع أو الحذف.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                item {
+                    OutlinedTextField(
+                        colors = k2FieldColors(),
+                        value = q, onValueChange = { q = it },
+                        placeholder = { Text("ابحث في حساباتك") },
+                        leadingIcon = { Icon(K2Icons.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        singleLine = true, shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                if (shown.isEmpty()) {
-                    Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                if (inTrash && !searching) {
+                    item {
                         Text(
-                            when {
-                                inTrash -> "سلة المهملات فاضية"
-                                entries.isEmpty() -> "الخزنة فاضية.\nاضغط + في النص وضيف أول عنصر"
-                                else -> "مفيش نتائج"
-                            },
-                            textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            "العناصر هنا بتتمسح نهائيًا بعد 30 يوم. اضغط على عنصر للاسترجاع أو الحذف.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                } else {
-                    LazyColumn(
-                        Modifier.fillMaxWidth().weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 88.dp),
-                    ) {
-                        items(shown, key = { it.id }) { e -> EntryCard(e, inTrash) }
+                }
+                if (listMode) {
+                    if (shown.isEmpty()) {
+                        item {
+                            Text(
+                                when {
+                                    searching -> "مفيش نتائج"
+                                    inTrash -> "سلة المهملات فاضية"
+                                    else -> "مفيش عناصر هنا"
+                                },
+                                Modifier.fillMaxWidth().padding(top = 40.dp), textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
+                    items(shown, key = { it.id }) { e -> EntryCard(e, inTrash) }
+                } else {
+                    if (rep.total > 0) {
+                        item {
+                            Box(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                                    .background(Brush.linearGradient(listOf(Color(0xFF4A3FB5), Color(0xFF1E6FA0))))
+                                    .clickable { screen = Screen.Health }.padding(14.dp),
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("صحة الباسوردات", style = MaterialTheme.typography.titleSmall, color = Color.White)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        StatTile("ضعيفة", rep.weak.size)
+                                        StatTile("مكررة", rep.reused.sumOf { it.size })
+                                        StatTile("قديمة", rep.old.size)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item { SectionHeader("الأنواع") }
+                    item {
+                        GlassCard(Modifier.fillMaxWidth()) {
+                            Column {
+                                SectionRow("📋", "كل العناصر", active.size) { filter = "all" }
+                                SectionRow("⭐", "المفضلة", active.count { it.favorite }) { filter = "fav" }
+                                for ((k, l, n) in typeRows) SectionRow(mapOf("t:login" to "🔑", "t:it" to "🖥", "t:note" to "📝", "t:card" to "💳", "t:identity" to "🪪", "t:ssh" to "🔐")[k] ?: "•", l, n) { filter = k }
+                                SectionRow("🗑", "المهملات", trashed.size) { filter = "trash" }
+                            }
+                        }
+                    }
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) { SectionHeader("الفولدرات (${folders.size})") }
+                            TextButton(onClick = { folderDlg = true }) { Text("إدارة / جديد") }
+                        }
+                    }
+                    if (folders.isNotEmpty()) {
+                        item {
+                            GlassCard(Modifier.fillMaxWidth()) {
+                                Column {
+                                    for (f in folders) {
+                                        val key = Folders.catOf(f)
+                                        SectionRow("📂", f.title, active.count { it.category == key }) { filter = key }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item { SectionHeader("بدون فولدر (${noFolder.size})") }
+                    if (active.isEmpty()) {
+                        item {
+                            Text(
+                                "الخزنة فاضية.\nاضغط + في النص وضيف أول عنصر",
+                                Modifier.fillMaxWidth().padding(top = 16.dp), textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    items(noFolder, key = { it.id }) { e -> EntryCard(e, false) }
                 }
             }
+        }
+    }
+
+    @Composable
+    private fun SectionHeader(text: String) {
+        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, start = 4.dp))
+    }
+
+    @Composable
+    private fun SectionRow(emoji: String, label: String, n: Int, onClick: () -> Unit) {
+        Row(
+            Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(emoji, Modifier.width(30.dp))
+            Text(label, Modifier.weight(1f))
+            Text("$n", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 
@@ -802,7 +902,10 @@ class MainActivity : FragmentActivity() {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
-                    Tab.Home -> HomeScreen()
+                    Tab.Generator -> GeneratorScreen(onCreate = { mode, v ->
+                        val base = Entry(id = "", title = "", username = if (mode == 2) v else "", password = if (mode == 2) "" else v, updatedAt = 0L)
+                        screen = Screen.Edit(null, "login", base)
+                    })
                     Tab.Vault -> VaultScreen()
                     Tab.Tools -> ToolsScreen()
                     Tab.Settings -> PrefsScreen()
@@ -822,8 +925,8 @@ class MainActivity : FragmentActivity() {
             shadowElevation = 12.dp,
         ) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                TabItem(Tab.Home, K2Icons.Home, "الرئيسية")
                 TabItem(Tab.Vault, K2Icons.Vault, "الخزنة")
+                TabItem(Tab.Generator, K2Icons.Sync, "المولّد")
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Box(
                         Modifier.size(56.dp).clip(CircleShape).background(BrandBrush).clickable { addDialog = true },
@@ -887,59 +990,6 @@ class MainActivity : FragmentActivity() {
             },
             confirmButton = { TextButton(onClick = { addDialog = false }) { Text("إلغاء") } },
         )
-    }
-
-    @Composable
-    private fun HomeScreen() {
-        val rep = remember(entries) { Health.analyze(entries, System.currentTimeMillis()) }
-        val active = entries.filter { it.trashedAt == 0L }
-        val favs = active.filter { it.favorite }.sortedBy { it.title.lowercase() }.take(5)
-        val recent = active.sortedByDescending { it.updatedAt }.take(5)
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF4A3FB5), Color(0xFF1E6FA0))))
-                    .padding(18.dp),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        LogoMark(48.dp)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("K2Pass", style = MaterialTheme.typography.titleLarge, color = Color.White)
-                            Text("${active.size} عنصر محفوظ", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
-                        }
-                        IconButton(onClick = { lockNow() }) { Icon(K2Icons.LockClosed, contentDescription = "قفل", tint = Color.White) }
-                    }
-                    if (rep.total > 0) {
-                        Row(
-                            Modifier.fillMaxWidth().clickable { screen = Screen.Health },
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            StatTile("ضعيفة", rep.weak.size)
-                            StatTile("مكررة", rep.reused.sumOf { it.size })
-                            StatTile("قديمة", rep.old.size)
-                        }
-                    }
-                }
-            }
-            if (active.isEmpty()) {
-                Section("ابدأ من هنا") {
-                    Text("اضغط + في النص وضيف أول عنصر: حساب، جهاز، سيرفر، راوتر، سويتش، فايروول، Wi-Fi، ملاحظة، كارت أو هوية.")
-                }
-            }
-            if (favs.isNotEmpty()) {
-                Text("المفضلة", style = MaterialTheme.typography.titleMedium)
-                favs.forEach { EntryCard(it, false) }
-            }
-            if (recent.isNotEmpty()) {
-                Text("آخر تعديل", style = MaterialTheme.typography.titleMedium)
-                recent.forEach { EntryCard(it, false) }
-            }
-        }
     }
 
     @Composable

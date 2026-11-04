@@ -54,6 +54,17 @@ object EntryTypes {
             listOf(Field("ssid", "اسم الشبكة (SSID)"), Field("security", "نوع الأمان (WPA2 / WPA3)"), Field("location", "المكان")),
             creds = true, hasUser = false, isIt = true, passLabel = "باسورد الواي فاي",
         ),
+        TypeInfo(
+            "ssh", "مفتاح SSH", "SSH", K2Icons.Key, Color(0xFF9BE15D),
+            listOf(
+                Field("host", "السيرفر / المستخدم (user@host)"),
+                Field("privkey", "المفتاح الخاص (Private key)", secret = true, multiline = true),
+                Field("pubkey", "المفتاح العام (Public key)", multiline = true),
+                Field("fingerprint", "البصمة (SHA256)"),
+                Field("passphrase", "باسفريز المفتاح", secret = true),
+            ),
+            isIt = true,
+        ),
         TypeInfo("note", "ملاحظة سرية", "ملاحظة", K2Icons.Note, Color(0xFFFFC76B)),
         TypeInfo(
             "card", "كارت دفع", "كارت", K2Icons.Card, Color(0xFFFF9F7A),

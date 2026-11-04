@@ -12,8 +12,8 @@ android {
         applicationId = "com.shawady.vault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 12
-        versionName = "0.9"
+        versionCode = 13
+        versionName = "1.0"
     }
 
     // A stable signing key is required for in-app updates (Android only installs an update signed by the same key).

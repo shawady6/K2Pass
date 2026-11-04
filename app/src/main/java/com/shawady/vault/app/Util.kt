@@ -32,6 +32,51 @@ object PasswordGenerator {
     }
 }
 
+/** Generator engine for the Generator tab (password / passphrase / username). Uses SecureRandom only. */
+object Gen {
+    private val rng = SecureRandom()
+    private var words: List<String>? = null
+
+    fun password(len: Int, upper: Boolean, lower: Boolean, digits: Boolean, symbols: Boolean, noAmbiguous: Boolean): String {
+        fun cl(s: String) = if (noAmbiguous) s.filter { it !in "lIO01o|" } else s
+        val sets = mutableListOf<String>()
+        if (upper) sets.add(cl("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+        if (lower) sets.add(cl("abcdefghijklmnopqrstuvwxyz"))
+        if (digits) sets.add(cl("0123456789"))
+        if (symbols) sets.add("!@#\$%^&*")
+        if (sets.isEmpty()) sets.add(cl("abcdefghijklmnopqrstuvwxyz"))
+        val all = sets.joinToString("")
+        val n = maxOf(len, sets.size)
+        val c = CharArray(n)
+        for (i in sets.indices) c[i] = sets[i][rng.nextInt(sets[i].length)]
+        for (i in sets.size until n) c[i] = all[rng.nextInt(all.length)]
+        for (i in n - 1 downTo 1) { val j = rng.nextInt(i + 1); val t = c[i]; c[i] = c[j]; c[j] = t }
+        return String(c)
+    }
+
+    private fun wordList(ctx: Context): List<String> =
+        words ?: ctx.resources.openRawResource(R.raw.wordlist).bufferedReader().readLines().map { it.trim() }.filter { it.isNotEmpty() }.also { words = it }
+
+    fun passphrase(ctx: Context, count: Int, sep: String, capitalize: Boolean, number: Boolean): String {
+        val w = wordList(ctx)
+        val parts = MutableList(count) { w[rng.nextInt(w.size)].let { x -> if (capitalize) x.replaceFirstChar { c -> c.uppercase() } else x } }
+        if (number) { val i = rng.nextInt(parts.size); parts[i] = parts[i] + rng.nextInt(10) }
+        return parts.joinToString(sep)
+    }
+
+    private fun rand(n: Int, chars: String = "abcdefghijklmnopqrstuvwxyz0123456789") = String(CharArray(n) { chars[rng.nextInt(chars.length)] })
+
+    /** kind: 0 plus-addressed email, 1 catch-all, 2 random word */
+    fun username(ctx: Context, kind: Int, email: String, domain: String): String = when (kind) {
+        0 -> {
+            val at = email.indexOf('@')
+            if (at <= 0) "" else email.substring(0, at) + "+" + rand(8) + email.substring(at)
+        }
+        1 -> if (domain.isBlank()) "" else rand(10) + "@" + domain.trim().removePrefix("@")
+        else -> wordList(ctx).let { w -> w[rng.nextInt(w.size)].replaceFirstChar { it.uppercase() } + w[rng.nextInt(w.size)].replaceFirstChar { it.uppercase() } + rng.nextInt(100) }
+    }
+}
+
 /** Copies to the clipboard flagged as sensitive and clears it after the configured time (default 20 s). */
 fun copySensitive(ctx: Context, label: String, text: String) {
     val cm = ctx.getSystemService(ClipboardManager::class.java) ?: return
