@@ -94,6 +94,7 @@ sealed interface Screen {
     data object Unlock : Screen
     data object Vault : Screen
     data class Edit(val entry: Entry?, val newType: String = "login", val prefill: Entry? = null) : Screen
+    data class View(val entry: Entry) : Screen
     data object Health : Screen
 }
 
@@ -278,6 +279,15 @@ class MainActivity : FragmentActivity() {
         screen = Screen.Vault
     }
 
+    private fun moveToCategory(ids: List<String>, cat: String) {
+        val d = Session.data ?: return
+        val now = System.currentTimeMillis()
+        val set = ids.toHashSet()
+        Session.persist(store, VaultData(d.entries.map { if (it.id in set && it.category != cat) it.copy(category = cat, updatedAt = now) else it }))
+        refreshEntries()
+        message = "اتنقل ${ids.size} عنصر"
+    }
+
     private fun createFolder(name: String) {
         val d = Session.data ?: return
         val f = Entry(id = java.util.UUID.randomUUID().toString(), title = name, username = "", password = "",
@@ -380,7 +390,10 @@ class MainActivity : FragmentActivity() {
 
     @Composable
     private fun Root() {
-        BackHandler(enabled = screen is Screen.Edit || screen is Screen.Health) { screen = Screen.Vault }
+        BackHandler(enabled = screen is Screen.Edit || screen is Screen.Health || screen is Screen.View) {
+            val cur = screen
+            screen = if (cur is Screen.Edit && cur.entry != null) Screen.View(cur.entry) else Screen.Vault
+        }
         Box(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
             Column(Modifier.fillMaxSize()) {
                 message?.let { m ->
@@ -419,12 +432,18 @@ class MainActivity : FragmentActivity() {
                         prefill = s.prefill,
                         initialType = s.newType,
                         onSave = { saveEntry(it) },
-                        onCancel = { screen = Screen.Vault },
+                        onCancel = { screen = if (s.entry != null) Screen.View(s.entry) else Screen.Vault },
                         onDelete = s.entry?.let { e -> { trashEntry(e) } },
+                    )
+                    is Screen.View -> EntryView(
+                        e = s.entry,
+                        folderName = Folders.nameOf(s.entry.category, folders),
+                        onEdit = { screen = Screen.Edit(s.entry) },
+                        onBack = { screen = Screen.Vault },
                     )
                     Screen.Health -> HealthScreen(
                         entries = entries,
-                        onOpen = { e -> screen = Screen.Edit(e) },
+                        onOpen = { e -> screen = Screen.View(e) },
                         onBack = { tab = Tab.Tools; screen = Screen.Vault },
                     )
                 }
@@ -542,6 +561,7 @@ class MainActivity : FragmentActivity() {
         // "" = root sections; "all", "fav", "trash", "t:<type>", "t:it", or a folder category "f:<id>"
         var filter by remember { mutableStateOf("") }
         var folderDlg by remember { mutableStateOf(false) }
+        var bulk by remember { mutableStateOf<String?>(null) } // "add" | "remove"
         val active = entries.filter { it.trashedAt == 0L }
         val trashed = entries.filter { it.trashedAt > 0L }
         val inTrash = filter == "trash"
@@ -596,6 +616,22 @@ class MainActivity : FragmentActivity() {
                     onClose = { folderDlg = false },
                 )
             }
+            if (bulk == "add") {
+                val cands = active.filter { it.category != filter }
+                    .sortedWith(compareBy<Entry> { Folders.nameOf(it.category, folders) != null }.thenBy { it.title.lowercase() })
+                BulkPickDialog(
+                    title = "إضافة عناصر للفولدر", confirmLabel = "إضافة", items = cands,
+                    hint = { e -> Folders.nameOf(e.category, folders)?.let { "حاليًا في: $it" } ?: "بدون فولدر" },
+                    onConfirm = { ids -> moveToCategory(ids, filter) }, onClose = { bulk = null },
+                )
+            }
+            if (bulk == "remove") {
+                BulkPickDialog(
+                    title = "إزالة عناصر من الفولدر", confirmLabel = "إزالة", items = shown,
+                    hint = { e -> e.username },
+                    onConfirm = { ids -> moveToCategory(ids, "other") }, onClose = { bulk = null },
+                )
+            }
             LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -631,6 +667,14 @@ class MainActivity : FragmentActivity() {
                             "العناصر هنا بتتمسح نهائيًا بعد 30 يوم. اضغط على عنصر للاسترجاع أو الحذف.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+                if (listMode && !searching && filter.startsWith(Folders.PREFIX)) {
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { bulk = "add" }, modifier = Modifier.weight(1f)) { Text("+ إضافة عناصر") }
+                            OutlinedButton(enabled = shown.isNotEmpty(), onClick = { bulk = "remove" }, modifier = Modifier.weight(1f)) { Text("إزالة عناصر") }
+                        }
                     }
                 }
                 if (listMode) {
@@ -746,7 +790,7 @@ class MainActivity : FragmentActivity() {
         val info = EntryTypes.of(e.type)
         GlassCard(
             Modifier.fillMaxWidth(),
-            onClick = { if (inTrash) trashTarget = e else screen = Screen.Edit(e) },
+            onClick = { if (inTrash) trashTarget = e else screen = Screen.View(e) },
         ) {
             Row(Modifier.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (e.type == "login") Avatar(e.title) else IconTile(info.icon, info.color)
@@ -766,8 +810,13 @@ class MainActivity : FragmentActivity() {
                                 if (r != null) copySensitive(ctx, "totp", r.code) else message = "مفتاح TOTP غير صالح"
                             }, contentPadding = PaddingValues(horizontal = 6.dp)) { Text("OTP") }
                         }
-                        IconButton(onClick = { copySensitive(ctx, "password", e.password) }, modifier = Modifier.size(40.dp)) {
-                            Icon(K2Icons.Copy, contentDescription = "نسخ الباسورد", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                        if (info.hasUser && e.username.isNotBlank()) {
+                            IconButton(onClick = { copySensitive(ctx, "username", e.username); message = "اتنسخ اسم المستخدم" }, modifier = Modifier.size(40.dp)) {
+                                Icon(K2Icons.Person, contentDescription = "نسخ اسم المستخدم", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        IconButton(onClick = { copySensitive(ctx, "password", e.password); message = "اتنسخ الباسورد" }, modifier = Modifier.size(40.dp)) {
+                            Icon(K2Icons.Key, contentDescription = "نسخ الباسورد", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
                     }
                     IconButton(onClick = { toggleFavorite(e) }, modifier = Modifier.size(40.dp)) {

@@ -2,6 +2,12 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-04 — v1.1 (read-only view, bulk folder ops, two copy buttons)
+- Tapping an item opens a **read-only view** (copy + show/hide secrets, live TOTP, voice playback). Editing only through the "تعديل" button; back from edit returns to the view.
+- Inside a folder: **"+ إضافة عناصر"** (multi-select picker, no-folder items first, search, select all) and **"إزالة عناصر"** (multi-select) — no more one-by-one.
+- Item cards: separate **copy username** and **copy password** buttons (plus OTP).
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-04 — v1.0 (Bitwarden-style features, K2Pass look)
 - New **Generator tab** (replaces the Home tab): Password (length slider, A-Z/a-z/0-9/symbols, avoid ambiguous), Passphrase (EFF Long wordlist bundled offline in `res/raw/wordlist.txt`, 3–10 words, separator, capitalize, number), Username (plus-addressed email, catch-all, random words). Digits blue / symbols pink, regenerate + copy, "create item with result". Options persist in a local prefs file (no secrets). Wordlist: EFF Long (CC BY 3.0).
 - **Vault screen** now sectioned: health tiles, الأنواع (all / favorites / login / IT / notes / cards / identities / SSH / trash with counts), الفولدرات with counts, بدون فولدر list. Tapping a row opens that list (back button / system back returns). Search works across everything.

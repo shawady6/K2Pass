@@ -43,7 +43,7 @@ fun Entry.withoutVoice(): Entry = if (extra.containsKey(VOICE_KEY)) copy(extra =
  * Temp files in cacheDir are plaintext, so they are removed immediately after use.
  */
 @Composable
-fun VoiceSection(extra: MutableMap<String, String>) {
+fun VoiceSection(extra: MutableMap<String, String>, readOnly: Boolean = false) {
     val ctx = LocalContext.current
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
@@ -112,11 +112,11 @@ fun VoiceSection(extra: MutableMap<String, String>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
         Text("تسجيل صوتي", style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (recorder != null) {
+            if (!readOnly && recorder != null) {
                 Button(onClick = { finishRecording(true) }) { Text("إيقاف وحفظ (${seconds}ث / ${MAX_SECONDS}ث)") }
                 OutlinedButton(onClick = { finishRecording(false) }) { Text("إلغاء") }
             } else {
-                Button(onClick = {
+                if (!readOnly) Button(onClick = {
                     if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
                         startRecording() else perm.launch(Manifest.permission.RECORD_AUDIO)
                 }) { Text(if (has) "تسجيل جديد (يستبدل القديم)" else "ابدأ التسجيل") }
@@ -136,7 +136,7 @@ fun VoiceSection(extra: MutableMap<String, String>) {
                             } catch (e: Exception) { stopPlay(); msg = "تعذّر التشغيل" }
                         }
                     }) { Text(if (player != null) "إيقاف" else "تشغيل") }
-                    OutlinedButton(onClick = { stopPlay(); extra.remove(VOICE_KEY) }) {
+                    if (!readOnly) OutlinedButton(onClick = { stopPlay(); extra.remove(VOICE_KEY) }) {
                         Text("حذف", color = MaterialTheme.colorScheme.error)
                     }
                 }
