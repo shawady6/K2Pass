@@ -88,6 +88,12 @@ fun EntryEditor(
     var symbols by remember { mutableStateOf(true) }
     var err by remember { mutableStateOf<String?>(null) }
     var historyOpen by remember { mutableStateOf(false) }
+    // Unsaved-changes guard: compare against the values the screen started with.
+    fun snap() = listOf(title, username, password, url, notes, totp, cat, fav.toString(), type, extra.toSortedMap().toString()).joinToString("\u0001")
+    val initialSnap = remember { snap() }
+    val dirty = snap() != initialSnap
+    var confirmLeave by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler(enabled = dirty) { confirmLeave = true }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -215,13 +221,22 @@ fun EntryEditor(
                     onSave(e)
                 }
             }) { Text(saveLabel) }
-            OutlinedButton(onClick = onCancel) { Text("إلغاء") }
+            OutlinedButton(onClick = { if (dirty) confirmLeave = true else onCancel() }) { Text("إلغاء") }
             if (onDelete != null) {
                 TextButton(onClick = onDelete) { Text("نقل للمهملات", color = MaterialTheme.colorScheme.error) }
             }
         }
     }
 
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text("تخرج من غير حفظ؟") },
+            text = { Text("فيه تعديلات لسه ما اتحفظتش وهتضيع.") },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onCancel() }) { Text("اخرج بدون حفظ", color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("كمّل التعديل") } },
+        )
+    }
     if (historyOpen && orig != null) {
         HistoryDialog(
             hist = orig.history,

@@ -109,6 +109,8 @@ class MainActivity : FragmentActivity() {
     private var addDialog by mutableStateOf(false)
     private var entries by mutableStateOf<List<Entry>>(emptyList())
     private var folders by mutableStateOf<List<Entry>>(emptyList())
+    /** Vault section/folder currently open ("" = root). Lives here so View/Edit → back returns to the same folder. */
+    private var vaultFilter by mutableStateOf("")
     private var message by mutableStateOf<String?>(null)
     private var pendingRemote by mutableStateOf<VaultCrypto.VaultFile?>(null)
     private var resumeTick by mutableStateOf(0)
@@ -126,6 +128,7 @@ class MainActivity : FragmentActivity() {
             if (uri != null) {
                 try {
                     contentResolver.openOutputStream(uri, "wt")?.use { it.write(store.rawJson().toByteArray(Charsets.UTF_8)) }
+                    prefs.lastExportMs = System.currentTimeMillis()
                     message = "اتصدّر الملف المشفر. انقله للجهاز التاني وامسح النسخة بعد الاستيراد."
                 } catch (e: Exception) {
                     message = "فشل التصدير"
@@ -264,6 +267,7 @@ class MainActivity : FragmentActivity() {
 
     private fun lockNow() {
         Session.lock()
+        vaultFilter = ""
         entries = emptyList()
         pendingRemote = null
         if (store.exists()) screen = Screen.Unlock
@@ -559,29 +563,33 @@ class MainActivity : FragmentActivity() {
     private fun VaultScreen() {
         var q by remember { mutableStateOf("") }
         // "" = root sections; "all", "fav", "trash", "t:<type>", "t:it", or a folder category "f:<id>"
-        var filter by remember { mutableStateOf("") }
         var folderDlg by remember { mutableStateOf(false) }
         var bulk by remember { mutableStateOf<String?>(null) } // "add" | "remove"
+        var backupHidden by remember { mutableStateOf(false) }
         val active = entries.filter { it.trashedAt == 0L }
         val trashed = entries.filter { it.trashedAt > 0L }
-        val inTrash = filter == "trash"
+        val inTrash = vaultFilter == "trash"
         val searching = q.isNotBlank()
         val rep = remember(entries) { Health.analyze(entries, System.currentTimeMillis()) }
-        androidx.activity.compose.BackHandler(enabled = filter != "" && !searching) { filter = "" }
+        androidx.activity.compose.BackHandler(enabled = vaultFilter != "" && !searching) { vaultFilter = "" }
 
         fun inSection(e: Entry): Boolean = when {
-            filter == "all" || filter == "" -> true
-            filter == "fav" -> e.favorite
-            filter == "t:it" -> EntryTypes.isIt(e.type) && e.type != "ssh"
-            filter.startsWith("t:") -> e.type == filter.removePrefix("t:")
-            filter.startsWith(Folders.PREFIX) -> e.category == filter
+            vaultFilter == "all" || vaultFilter == "" -> true
+            vaultFilter == "fav" -> e.favorite
+            vaultFilter == "t:it" -> EntryTypes.isIt(e.type) && e.type != "ssh"
+            vaultFilter.startsWith("t:") -> e.type == vaultFilter.removePrefix("t:")
+            vaultFilter.startsWith(Folders.PREFIX) -> e.category == vaultFilter
             else -> true
         }
         val pool = if (inTrash) trashed else active
-        val matchQ: (Entry) -> Boolean = {
-            it.title.contains(q, true) || it.username.contains(q, true) || it.url.contains(q, true)
+        // Searches title, username, URLs, notes, folder name and all NON-secret extra fields (IP, host, SSID...).
+        val matchQ: (Entry) -> Boolean = { e ->
+            val secretKeys = EntryTypes.of(e.type).fields.filter { it.secret }.map { it.key }.toSet() + VOICE_KEY
+            e.title.contains(q, true) || e.username.contains(q, true) || e.allUrls().any { u -> u.contains(q, true) } ||
+                e.notes.contains(q, true) || (Folders.nameOf(e.category, folders)?.contains(q, true) == true) ||
+                e.extra.any { (k, v) -> k !in secretKeys && k != URLS_KEY && v.contains(q, true) }
         }
-        val listMode = searching || filter != ""
+        val listMode = searching || vaultFilter != ""
         val shown = if (!listMode) emptyList() else pool.filter { (searching || inTrash || inSection(it)) && (!searching || matchQ(it)) }
             .sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.thenBy { it.title.lowercase() })
         val noFolder = active.filter { Folders.nameOf(it.category, folders) == null }
@@ -595,11 +603,11 @@ class MainActivity : FragmentActivity() {
             Triple("t:ssh", "مفاتيح SSH", active.count { it.type == "ssh" }),
         )
         val title = when {
-            filter == "all" -> "كل العناصر"
-            filter == "fav" -> "المفضلة"
-            filter == "trash" -> "المهملات"
-            filter.startsWith("t:") -> typeRows.firstOrNull { it.first == filter }?.second ?: "الأنواع"
-            filter.startsWith(Folders.PREFIX) -> "📂 " + (Folders.nameOf(filter, folders) ?: "فولدر")
+            vaultFilter == "all" -> "كل العناصر"
+            vaultFilter == "fav" -> "المفضلة"
+            vaultFilter == "trash" -> "المهملات"
+            vaultFilter.startsWith("t:") -> typeRows.firstOrNull { it.first == vaultFilter }?.second ?: "الأنواع"
+            vaultFilter.startsWith(Folders.PREFIX) -> "📂 " + (Folders.nameOf(vaultFilter, folders) ?: "فولدر")
             else -> "K2Pass"
         }
         Box(Modifier.fillMaxSize()) {
@@ -610,19 +618,19 @@ class MainActivity : FragmentActivity() {
                     favCount = active.count { it.favorite },
                     trashCount = trashed.size,
                     totalCount = active.size,
-                    filter = filter, onFilter = { filter = it },
+                    filter = vaultFilter, onFilter = { vaultFilter = it },
                     onCreate = { createFolder(it) }, onRename = { f, n -> renameFolder(f, n) },
-                    onDelete = { f -> if (filter == Folders.catOf(f)) filter = ""; deleteFolder(f) },
+                    onDelete = { f -> if (vaultFilter == Folders.catOf(f)) vaultFilter = ""; deleteFolder(f) },
                     onClose = { folderDlg = false },
                 )
             }
             if (bulk == "add") {
-                val cands = active.filter { it.category != filter }
+                val cands = active.filter { it.category != vaultFilter }
                     .sortedWith(compareBy<Entry> { Folders.nameOf(it.category, folders) != null }.thenBy { it.title.lowercase() })
                 BulkPickDialog(
                     title = "إضافة عناصر للفولدر", confirmLabel = "إضافة", items = cands,
                     hint = { e -> Folders.nameOf(e.category, folders)?.let { "حاليًا في: $it" } ?: "بدون فولدر" },
-                    onConfirm = { ids -> moveToCategory(ids, filter) }, onClose = { bulk = null },
+                    onConfirm = { ids -> moveToCategory(ids, vaultFilter) }, onClose = { bulk = null },
                 )
             }
             if (bulk == "remove") {
@@ -639,8 +647,8 @@ class MainActivity : FragmentActivity() {
             ) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (filter != "") {
-                            IconButton(onClick = { filter = "" }) { Icon(K2Icons.Back, contentDescription = "رجوع", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        if (vaultFilter != "") {
+                            IconButton(onClick = { vaultFilter = "" }) { Icon(K2Icons.Back, contentDescription = "رجوع", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         } else {
                             LogoMark(44.dp); Spacer(Modifier.width(10.dp))
                         }
@@ -661,6 +669,32 @@ class MainActivity : FragmentActivity() {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                if (!listMode && !backupHidden && active.isNotEmpty()) {
+                    val now = System.currentTimeMillis()
+                    val last = prefs.lastExportMs
+                    val days = if (last == 0L) -1L else (now - last) / 86_400_000L
+                    if ((last == 0L || days >= 14) && now > prefs.backupSnoozeUntilMs) {
+                        item {
+                            GlassCard(Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("نسخة احتياطية", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                                    Text(
+                                        if (last == 0L) "لسه ما صدّرتش نسخة مشفرة. لو الموبايل ضاع هتخسر كل الباسوردات."
+                                        else "آخر نسخة احتياطية من $days يوم.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = {
+                                            backupHidden = true
+                                            exportLauncher.launch("k2pass-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".vault")
+                                        }) { Text("صدّر دلوقتي") }
+                                        TextButton(onClick = { prefs.backupSnoozeUntilMs = now + 7 * 86_400_000L; backupHidden = true }) { Text("بعد أسبوع") }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 if (inTrash && !searching) {
                     item {
                         Text(
@@ -669,7 +703,7 @@ class MainActivity : FragmentActivity() {
                         )
                     }
                 }
-                if (listMode && !searching && filter.startsWith(Folders.PREFIX)) {
+                if (listMode && !searching && vaultFilter.startsWith(Folders.PREFIX)) {
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = { bulk = "add" }, modifier = Modifier.weight(1f)) { Text("+ إضافة عناصر") }
@@ -715,10 +749,10 @@ class MainActivity : FragmentActivity() {
                     item {
                         GlassCard(Modifier.fillMaxWidth()) {
                             Column {
-                                SectionRow("📋", "كل العناصر", active.size) { filter = "all" }
-                                SectionRow("⭐", "المفضلة", active.count { it.favorite }) { filter = "fav" }
-                                for ((k, l, n) in typeRows) SectionRow(mapOf("t:login" to "🔑", "t:it" to "🖥", "t:note" to "📝", "t:card" to "💳", "t:identity" to "🪪", "t:ssh" to "🔐")[k] ?: "•", l, n) { filter = k }
-                                SectionRow("🗑", "المهملات", trashed.size) { filter = "trash" }
+                                SectionRow("📋", "كل العناصر", active.size) { vaultFilter = "all" }
+                                SectionRow("⭐", "المفضلة", active.count { it.favorite }) { vaultFilter = "fav" }
+                                for ((k, l, n) in typeRows) SectionRow(mapOf("t:login" to "🔑", "t:it" to "🖥", "t:note" to "📝", "t:card" to "💳", "t:identity" to "🪪", "t:ssh" to "🔐")[k] ?: "•", l, n) { vaultFilter = k }
+                                SectionRow("🗑", "المهملات", trashed.size) { vaultFilter = "trash" }
                             }
                         }
                     }
@@ -734,7 +768,7 @@ class MainActivity : FragmentActivity() {
                                 Column {
                                     for (f in folders) {
                                         val key = Folders.catOf(f)
-                                        SectionRow("📂", f.title, active.count { it.category == key }) { filter = key }
+                                        SectionRow("📂", f.title, active.count { it.category == key }) { vaultFilter = key }
                                     }
                                 }
                             }

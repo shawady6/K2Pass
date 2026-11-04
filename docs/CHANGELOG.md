@@ -2,6 +2,17 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-04 — v1.3 (phase-1 safety work)
+- **Tests** (`vault-core/src/test`, run in CI before the APK build): RFC 6238 TOTP vectors (SHA-1/256/512), merge commutativity/idempotence/history cap/tombstones/tie-break, model JSON round trip + old-format load. Crypto round-trip tests are NOT possible on the JVM (Argon2 JNI) → need instrumented tests (still TODO).
+- Editor: warns before leaving with unsaved changes (back button and "إلغاء").
+- Vault: the open folder/section is kept when you open an item and come back.
+- Backup reminder card on the vault root (never exported, or ≥14 days; "بعد أسبوع" snoozes).
+- Master-password attempts: persistent back-off (3 free tries, then 10 s doubling to 15 min), survives app restarts.
+- Search now covers notes, all URLs, folder names and non-secret fields (IP, host, SSID…).
+- One generator engine (`Gen`) for the editor and the Generator tab.
+- Not done on purpose: moving the signing key out of the public repo (see docs/SECURITY_ARCHITECTURE.md note) — it is already in git history, so removal alone gains nothing without rotating the key (which forces a reinstall).
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-04 — v1.2 (one account, many sites/apps)
 - A login can match several URLs/apps: extra field `urls` (one per line, e.g. `androidapp://com.facebook.katana`). `Matcher` checks the main URL plus these. No vault-format change.
 - Save prompt: if the credentials just entered (same username + password) already exist under another site/app, K2Pass offers "ربط بالحساب الموجود؟" instead of creating a duplicate.

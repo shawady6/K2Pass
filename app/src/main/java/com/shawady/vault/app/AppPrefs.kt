@@ -19,6 +19,15 @@ class AppPrefs(ctx: Context) {
         get() = p.getBoolean("block_screens", true)
         set(v) { p.edit().putBoolean("block_screens", v).apply() }
 
+    /** Epoch ms of the last encrypted export (0 = never). Drives the backup reminder. */
+    var lastExportMs: Long
+        get() = p.getLong("last_export", 0L)
+        set(v) { p.edit().putLong("last_export", v).apply() }
+
+    var backupSnoozeUntilMs: Long
+        get() = p.getLong("backup_snooze", 0L)
+        set(v) { p.edit().putLong("backup_snooze", v).apply() }
+
     var copyTotp: Boolean
         get() = p.getBoolean("copy_totp", true)
         set(v) { p.edit().putBoolean("copy_totp", v).apply() }

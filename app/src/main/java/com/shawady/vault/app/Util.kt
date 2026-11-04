@@ -10,26 +10,9 @@ import com.shawady.vault.core.Entry
 import java.security.SecureRandom
 
 object PasswordGenerator {
-    private val rng = SecureRandom()
-    private const val LOWER = "abcdefghijkmnopqrstuvwxyz"
-    private const val UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-    private const val DIGITS = "23456789"
-    private const val SYMBOLS = "!@#\$%^&*-_=+?"
-
-    fun generate(length: Int, symbols: Boolean): String {
-        val sets = mutableListOf(LOWER, UPPER, DIGITS)
-        if (symbols) sets.add(SYMBOLS)
-        val all = sets.joinToString("")
-        val n = maxOf(length, sets.size)
-        val chars = CharArray(n)
-        for (i in sets.indices) chars[i] = sets[i][rng.nextInt(sets[i].length)]
-        for (i in sets.size until n) chars[i] = all[rng.nextInt(all.length)]
-        for (i in n - 1 downTo 1) {
-            val j = rng.nextInt(i + 1)
-            val t = chars[i]; chars[i] = chars[j]; chars[j] = t
-        }
-        return String(chars)
-    }
+    /** Same engine as the Generator tab ([Gen]); ambiguous characters are avoided for hand-typed passwords. */
+    fun generate(length: Int, symbols: Boolean): String =
+        Gen.password(length, upper = true, lower = true, digits = true, symbols = symbols, noAmbiguous = true)
 }
 
 /** Generator engine for the Generator tab (password / passphrase / username). Uses SecureRandom only. */

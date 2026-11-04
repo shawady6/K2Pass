@@ -107,7 +107,7 @@ fun UnlockScreen(
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
-    var fails by remember { mutableStateOf(0) }
+    val limiter = remember { AttemptLimiter(activity.applicationContext) }
     val scope = rememberCoroutineScope()
     val bio = remember { BiometricUnlock(activity) }
     val blob = remember { store.loadBlob() }
@@ -136,6 +136,8 @@ fun UnlockScreen(
 
     fun submit() {
         if (busy) return
+        val wait = limiter.secondsLeft()
+        if (wait > 0) { error = "محاولات كتير غلط. استنى $wait ثانية."; return }
         busy = true
         error = null
         val chars = pw.toCharArray()
@@ -151,11 +153,12 @@ fun UnlockScreen(
                 }
             }
             if (result == null) {
-                fails++
-                error = "كلمة المرور غير صحيحة"
-                delay(minOf(30_000L, 1000L shl minOf(fails, 5)))
+                limiter.fail()
+                val w = limiter.secondsLeft()
+                error = if (w > 0) "كلمة المرور غير صحيحة. استنى $w ثانية قبل المحاولة الجاية." else "كلمة المرور غير صحيحة"
                 busy = false
             } else {
+                limiter.reset()
                 store.markMasterUnlock()
                 pw = ""
                 busy = false
@@ -231,4 +234,18 @@ fun UnlockScreen(
         }
         extra()
     }
+}
+
+
+/** Persistent (survives app restarts) back-off for wrong master passwords: free 3 tries, then 10s doubling up to 15 min. */
+class AttemptLimiter(ctx: android.content.Context) {
+    private val p = ctx.getSharedPreferences("k2_attempts", android.content.Context.MODE_PRIVATE)
+    fun secondsLeft(): Long = ((p.getLong("until", 0L) - System.currentTimeMillis()) / 1000L + 1).coerceAtLeast(0)
+        .let { if (p.getLong("until", 0L) <= System.currentTimeMillis()) 0 else it }
+    fun fail() {
+        val n = p.getInt("fails", 0) + 1
+        val delayMs = if (n < 3) 0L else minOf(15 * 60_000L, 10_000L shl minOf(n - 3, 7))
+        p.edit().putInt("fails", n).putLong("until", System.currentTimeMillis() + delayMs).apply()
+    }
+    fun reset() { p.edit().clear().apply() }
 }
