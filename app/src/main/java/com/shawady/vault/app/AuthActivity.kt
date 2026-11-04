@@ -49,6 +49,7 @@ class AuthActivity : FragmentActivity() {
 
     private var unlocked by mutableStateOf<Unlocked?>(null)
     private var updateTarget by mutableStateOf<Entry?>(null)
+    private var linkTarget by mutableStateOf<Entry?>(null)
     private val store by lazy { VaultStore(applicationContext) }
     private val prefs by lazy { AppPrefs(applicationContext) }
 
@@ -106,6 +107,8 @@ class AuthActivity : FragmentActivity() {
                         }
                     } else if (saveMode && updateTarget != null) {
                         UpdatePrompt(u, updateTarget!!)
+                    } else if (saveMode && linkTarget != null) {
+                        LinkPrompt(u, linkTarget!!)
                     } else {
                         EntryEditor(
                             heading = when {
@@ -131,6 +134,35 @@ class AuthActivity : FragmentActivity() {
         unlocked?.key?.fill(0)
         unlocked = null
         super.onDestroy()
+    }
+
+    private fun newIdentifier(): String? = when {
+        pkg != null -> "androidapp://$pkg"
+        domain != null -> "https://$domain"
+        else -> null
+    }
+
+    @androidx.compose.runtime.Composable
+    private fun LinkPrompt(u: Unlocked, target: Entry) {
+        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("ربط بالحساب الموجود؟", style = MaterialTheme.typography.titleLarge)
+            Text("\"${target.title}\" (${target.username}) محفوظ بنفس اليوزر والباسورد. تربط ${newIdentifier()} بيه بدل ما تعمل نسخة مكررة؟")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    val id = newIdentifier() ?: return@Button
+                    val urls = ((target.extra[URLS_KEY] ?: "").lines().map { it.trim() }.filter { it.isNotEmpty() } + id).distinct().joinToString("\n")
+                    val ne = target.copy(extra = target.extra + (URLS_KEY to urls), updatedAt = System.currentTimeMillis())
+                    if (persist(u, VaultData(u.data.entries.filter { it.id != target.id } + ne))) {
+                        Toast.makeText(this@AuthActivity, "اتربط بالحساب الموجود", Toast.LENGTH_SHORT).show()
+                        setResult(RESULT_OK)
+                        finish()
+                    } else {
+                        cancel()
+                    }
+                }) { Text("ربط") }
+                OutlinedButton(onClick = { linkTarget = null }) { Text("حفظ كعنصر جديد") }
+            }
+        }
     }
 
     @androidx.compose.runtime.Composable
@@ -176,7 +208,14 @@ class AuthActivity : FragmentActivity() {
                     updateTarget = same
                     unlocked = Unlocked(f, k, data)
                 }
-                else -> unlocked = Unlocked(f, k, data)
+                else -> {
+                    // Same account saved under another site/app? Offer to link instead of duplicating.
+                    val twin = if (userText.orEmpty().isNotEmpty())
+                        data.entries.firstOrNull { it.type == "login" && !it.deleted && it.trashedAt == 0L &&
+                            it.username.equals(userText, true) && it.password == savePass } else null
+                    if (twin != null && newIdentifier() != null) linkTarget = twin
+                    unlocked = Unlocked(f, k, data)
+                }
             }
             return
         }

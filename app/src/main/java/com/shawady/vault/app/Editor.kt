@@ -150,6 +150,13 @@ fun EntryEditor(
                     label = { Text("الرابط: https://site.com أو androidapp://com.package") },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(
+                    colors = k2FieldColors(),
+                    value = extra[URLS_KEY] ?: "", onValueChange = { extra[URLS_KEY] = it },
+                    label = { Text("روابط / تطبيقات تانية لنفس الحساب (واحد في السطر)") },
+                    placeholder = { Text("androidapp://com.facebook.katana") },
+                    minLines = 2, modifier = Modifier.fillMaxWidth(),
+                )
                 SecretField("مفتاح TOTP (base32 أو otpauth://)", totp, { totp = it }, showTotp, { showTotp = !showTotp })
                 if (totp.isNotBlank()) TotpLive(totp)
             }
@@ -184,7 +191,7 @@ fun EntryEditor(
                     val u = if (isLogin) url.trim() else ""
                     val tp = if (isLogin) totp.trim().ifEmpty { null } else null
                     val keys = info.fields.map { it.key }
-                    val ex: Map<String, String> = extra.filter { (it.key in keys || (type == "note" && it.key == VOICE_KEY)) && it.value.isNotBlank() }.toMap()
+                    val ex: Map<String, String> = extra.filter { (it.key in keys || (type == "note" && it.key == VOICE_KEY) || (type == "login" && it.key == URLS_KEY)) && it.value.isNotBlank() }.toMap()
                     val e = if (orig == null) {
                         Entry(
                             id = UUID.randomUUID().toString(), title = t, username = un, password = pw, url = u,

@@ -111,11 +111,18 @@ fun siteName(base: String): String =
  * Autofill matching. Web: the page host must equal the entry host or be a subdomain of it.
  * Apps: entry url must be "androidapp://<package>". Plain http pages are never matched.
  */
+/** Extra match targets for a login (site + apps sharing one account), one per line in extra["urls"]. */
+const val URLS_KEY = "urls"
+fun Entry.allUrls(): List<String> =
+    (listOf(url) + (extra[URLS_KEY] ?: "").lines()).map { it.trim() }.filter { it.isNotEmpty() }
+
 object Matcher {
     fun matches(e: Entry, domain: String?, pkg: String?): Boolean {
         if (e.deleted || e.trashedAt > 0L || e.type != "login") return false
-        val u = e.url.trim().lowercase()
-        if (u.isEmpty()) return false
+        return e.allUrls().any { urlMatches(it.lowercase(), domain, pkg) }
+    }
+
+    private fun urlMatches(u: String, domain: String?, pkg: String?): Boolean {
         if (u.startsWith("androidapp://")) {
             return pkg != null && u.removePrefix("androidapp://") == pkg.lowercase()
         }

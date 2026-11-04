@@ -2,6 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-04 — v1.2 (one account, many sites/apps)
+- A login can match several URLs/apps: extra field `urls` (one per line, e.g. `androidapp://com.facebook.katana`). `Matcher` checks the main URL plus these. No vault-format change.
+- Save prompt: if the credentials just entered (same username + password) already exist under another site/app, K2Pass offers "ربط بالحساب الموجود؟" instead of creating a duplicate.
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-04 — v1.1.1 (one-tap update)
 - "تحقق وحدّث": one button checks, downloads, SHA-256-verifies and opens the Android installer (the final confirmation screen is enforced by Android and cannot be skipped). A separate "تثبيت" button appears only if the install-permission screen interrupted the flow.
 

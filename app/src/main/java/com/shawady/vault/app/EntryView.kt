@@ -65,6 +65,7 @@ fun EntryView(e: Entry, folderName: String?, onEdit: () -> Unit, onBack: () -> U
             if (info.hasUser && e.username.isNotBlank()) ViewRow("اسم المستخدم / الإيميل", e.username, false, "username")
             if (e.password.isNotEmpty()) ViewRow(info.passLabel, e.password, true, "password")
             if (e.type == "login" && e.url.isNotBlank()) ViewRow("الرابط", e.url, false, "url")
+            if (e.type == "login" && !e.extra[URLS_KEY].isNullOrBlank()) ViewRow("روابط / تطبيقات تانية", e.extra[URLS_KEY]!!, false, "urls")
             if (e.type == "login" && !e.totpSecret.isNullOrBlank()) {
                 GlassCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp)) {
