@@ -2,6 +2,12 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — browser extension v0.1 (Chrome / Edge)
+- New `extension/` (Manifest V3): import the exported encrypted vault, unlock with the master password (Argon2id via bundled hash-wasm, WebCrypto AES-GCM), search (incl. IP/notes/folders), folder filter, copy user/password/TOTP, fill login forms (⚡, on click only), 5-min auto-lock, matching to the current site first.
+- Read-only for now; sync is manual (re-export from phone → replace file).
+- CI runs `node --test extension/test/extension.test.mjs` and publishes `K2Pass-extension.zip` next to the APK in the `latest` release.
+- Verified: 6 unit tests (incl. cross-check against a Python reference writer) + an end-to-end run in real headless Chromium (import → wrong password → unlock → list → TOTP → search by IP, no console errors). NOT yet tried with a real exported vault file or on real sites.
+
 ## 2026-11-08 — v1.4.1
 - Updater retries GitHub 5xx / network errors up to 4 times with back-off (owner hit a transient 504 while downloading 1.4); read timeout 60 s. Integrity failures are never retried.
 

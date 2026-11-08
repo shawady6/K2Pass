@@ -48,6 +48,9 @@ jobs:
             echo "::warning::K2_KEYSTORE_PASSWORD secret is missing: the APK gets a random debug key and will NOT be published (in-app updates would break)."
           fi
 
+      - name: Extension tests
+        run: node --test extension/test/extension.test.mjs
+
       - name: Build debug APK
         run: gradle :vault-core:testDebugUnitTest :app:assembleDebug --stacktrace
 
@@ -66,8 +69,9 @@ jobs:
           VN=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           SHA=$(sha256sum K2Pass-debug.apk | cut -d' ' -f1)
           printf 'Debug build of %s\nversionCode: %s\nversionName: %s\nsha256: %s\n' "${GITHUB_SHA::7}" "$VC" "$VN" "$SHA" > notes.txt
+          (cd extension && zip -qr ../K2Pass-extension.zip . -x 'test/*' -x '*.md')
           gh release delete latest --cleanup-tag -y || true
-          gh release create latest K2Pass-debug.apk \
+          gh release create latest K2Pass-debug.apk K2Pass-extension.zip \
             --title "K2Pass latest debug build" \
             --notes-file notes.txt \
             --target "$GITHUB_SHA" \

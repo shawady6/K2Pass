@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K2Pass</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><img src="icons/48.png" alt="" width="26" height="26"><span>K2Pass</span></div>
+    <div class="hdr-actions">
+      <button id="btn-lock" class="icon hidden" title="قفل">🔒</button>
+      <button id="btn-menu" class="icon hidden" title="المزيد">⋮</button>
+    </div>
+  </header>
+  <div id="menu" class="menu hidden">
+    <button id="m-replace">استبدال ملف الخزنة</button>
+    <button id="m-forget">مسح الخزنة من المتصفح</button>
+  </div>
+
+  <main>
+    <section id="v-import" class="hidden">
+      <div class="card">
+        <h2>افتح خزنتك</h2>
+        <p>من تطبيق K2Pass على الموبايل: <b>الإعدادات ← تصدير الخزنة (مشفّر)</b>، وانقل الملف للكمبيوتر، وبعدين اخترّه هنا.</p>
+        <label class="file-btn">📂 اختيار ملف الخزنة<input id="file" type="file" hidden></label>
+        <p class="hint">الملف بيفضل مشفّر على الكمبيوتر. الباسوردات مش بتتفك غير بعد ما تكتب الماستر باسورد.</p>
+        <p id="import-err" class="err"></p>
+      </div>
+    </section>
+
+    <section id="v-unlock" class="hidden">
+      <div class="card">
+        <h2>فتح الخزنة</h2>
+        <input id="pw" type="password" placeholder="الماستر باسورد" autocomplete="off">
+        <button id="btn-unlock" class="primary">فتح</button>
+        <p id="unlock-err" class="err"></p>
+      </div>
+    </section>
+
+    <section id="v-list" class="hidden">
+      <input id="q" type="search" placeholder="🔎 ابحث في حساباتك" autocomplete="off">
+      <select id="folder"></select>
+      <div id="list"></div>
+      <p id="empty" class="hint hidden">مفيش نتائج</p>
+    </section>
+  </main>
+  <div id="toast" class="toast hidden"></div>
+  <script src="lib/argon2.umd.min.js"></script>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
