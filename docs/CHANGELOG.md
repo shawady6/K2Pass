@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — Extension v0.5.1
+- Logo now identical to the app's (padlock with a K, violet→cyan); the 0.4.1 shield is dropped so extension and app share one identity.
+
 ## 2026-11-08 — Extension v0.5.0
 - In-page suggestions: focusing a login field on an https page (or localhost) shows the matching accounts in a small glass dropdown; click / Enter fills user + password. Only works while the vault is unlocked (5-min window), only in the top frame.
 - Security: the page gets no passwords until you pick one; the background script takes the URL from the browser (not from the page), re-checks that the entry matches it, and refuses http pages. The popup ⚡ button still works anywhere.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "K2Pass",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "K2Pass — خزنة باسوردات أوفلاين. بتقترح حساباتك جوه صفحات الدخول وبتملاها بضغطة.",
   "action": {
     "default_popup": "popup.html",
