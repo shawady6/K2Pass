@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — v1.4.1
+- Updater retries GitHub 5xx / network errors up to 4 times with back-off (owner hit a transient 504 while downloading 1.4); read timeout 60 s. Integrity failures are never retried.
+
 ## 2026-11-08 — v1.4 (phase 2: usability)
 - **QR scan for TOTP** ("📷 مسح QR" in the login editor; zxing-android-embedded, fully offline; new `CAMERA` permission, camera not required). Invalid QR → message.
 - **Sorting** (name / last modified) in item lists and "بدون فولدر".

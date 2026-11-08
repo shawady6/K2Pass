@@ -54,14 +54,29 @@ object Updater {
         require(url.startsWith("https://")) { "Only HTTPS is allowed" }
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 15_000
-        c.readTimeout = 30_000
+        c.readTimeout = 60_000
         c.setRequestProperty("User-Agent", "K2Pass-updater")
         c.setRequestProperty("Accept", "application/vnd.github+json")
         return c
     }
 
     /** Blocking: call from Dispatchers.IO. Throws on network / format problems. */
-    fun fetchLatest(): Info {
+    fun fetchLatest(): Info = retrying { fetchLatestOnce() }
+
+    /** GitHub sometimes answers 502/503/504 for a moment; retry with a short back-off (not for integrity failures). */
+    private fun <T> retrying(times: Int = 4, block: () -> T): T {
+        var last: Exception? = null
+        for (i in 0 until times) {
+            try { return block() } catch (e: Exception) {
+                if (e.message?.startsWith("التحقق") == true || e.message?.startsWith("الملف أكبر") == true) throw e
+                last = e
+                if (i < times - 1) Thread.sleep(2000L shl i)
+            }
+        }
+        throw last!!
+    }
+
+    private fun fetchLatestOnce(): Info {
         val c = open(API)
         try {
             if (c.responseCode != 200) throw IllegalStateException("GitHub رد بكود ${c.responseCode}")
@@ -90,7 +105,9 @@ object Updater {
     }
 
     /** Blocking download with SHA-256 verification. Returns the verified file. */
-    fun download(ctx: Context, info: Info, onProgress: (Float) -> Unit): File {
+    fun download(ctx: Context, info: Info, onProgress: (Float) -> Unit): File = retrying { downloadOnce(ctx, info, onProgress) }
+
+    private fun downloadOnce(ctx: Context, info: Info, onProgress: (Float) -> Unit): File {
         val dir = File(ctx.cacheDir, "updates").apply { deleteRecursively(); mkdirs() }
         val out = File(dir, "K2Pass-update.apk")
         val md = MessageDigest.getInstance("SHA-256")
