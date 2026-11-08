@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K2Pass</title>
+<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="app.css">
+</head>
+<body class="desk">
+<header>
+  <div class="brand"><img src="icons/48.png" alt="" width="28" height="28"><span>K2Pass</span></div>
+  <div class="hdr-actions">
+    <button id="btn-pair" class="icon hidden" title="مزامنة مع الموبايل"><i data-i="phone"></i></button>
+    <button id="btn-lock" class="icon hidden" title="قفل"><i data-i="lock"></i></button>
+  </div>
+</header>
+<main>
+  <section id="v-import" class="hidden"><div class="card hero">
+    <div class="badge"><i data-i="file" data-s="30"></i></div>
+    <h2>أهلًا في K2Pass للكمبيوتر</h2>
+    <p class="lead">هات خزنتك من الموبايل: اربطه (الأسهل) أو اختار ملف تصدير.</p>
+    <button id="go-pair" class="primary"><i data-i="phone" data-s="18"></i>ربط الموبايل</button>
+    <div class="or"><span>أو</span></div>
+    <label class="ghost"><i data-i="file" data-s="18"></i>اختيار ملف الخزنة<input id="file" type="file" hidden></label>
+    <p id="import-err" class="err"></p>
+  </div></section>
+
+  <section id="v-unlock" class="hidden"><div class="card hero">
+    <div class="badge"><i data-i="lock" data-s="30"></i></div>
+    <h2>فتح الخزنة</h2>
+    <input id="pw" type="password" placeholder="الماستر باسورد" autocomplete="off">
+    <button id="btn-unlock" class="primary">فتح</button>
+    <p id="unlock-err" class="err"></p>
+    <button id="forget" class="ghost small">مسح الخزنة من هذا الجهاز</button>
+  </div></section>
+
+  <section id="v-list" class="hidden">
+    <div class="split">
+      <div class="pane-l">
+        <div class="searchbox"><i data-i="search" data-s="17"></i><input id="q" type="search" placeholder="ابحث في حساباتك" autocomplete="off"></div>
+        <select id="folder"></select>
+        <div id="list"></div>
+        <p id="empty" class="empty hidden">مفيش نتائج</p>
+      </div>
+      <div class="pane-r" id="detail"><p class="empty">اختار حساب من القايمة</p></div>
+    </div>
+  </section>
+
+  <section id="v-pair" class="hidden"><div class="card">
+    <div class="step"><div class="num">1</div><div><h2>امسح الكود بالموبايل</h2>
+      <p class="hint">افتح K2Pass ← <b>الأدوات</b> ← <b>مزامنة مع الكمبيوتر</b> ← <b>مسح كود الكمبيوتر</b>. الاتنين على نفس الواي فاي.</p></div></div>
+    <div id="qr"></div>
+    <p class="hint" style="text-align:center"><i data-i="shield" data-s="14"></i> الكود سرّ ربط. ما تصوّرهوش.</p>
+    <div id="status" class="status"><span class="dot"></span><span id="msg">بجهّز…</span></div>
+    <p class="hint" id="addr" dir="ltr" style="text-align:center"></p>
+    <p class="hint">أول مرة، ويندوز هيسأل عن الجدار الناري: اضغط <b>السماح</b> للشبكات الخاصة.</p>
+    <div class="row2"><button id="new-code" class="ghost"><i data-i="sync" data-s="16"></i>كود جديد</button><button id="pair-back" class="ghost">رجوع</button></div>
+  </div></section>
+</main>
+<div id="toast" class="toast hidden"></div>
+<script src="lib/argon2.umd.min.js"></script>
+<script src="lib/qrcode.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

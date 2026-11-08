@@ -1,0 +1,14 @@
+body.desk{width:auto;max-height:none;min-height:100vh}
+body.desk main{padding:18px;max-width:1100px;margin:0 auto}
+.hero{max-width:420px;margin:40px auto}
+.split{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:16px}
+.pane-l{display:flex;flex-direction:column}
+.pane-l #list{max-height:calc(100vh - 210px)}
+.pane-r{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;min-height:300px;align-self:start}
+#v-pair .card{max-width:520px;margin:20px auto}
+.small{padding:8px 12px;font-size:12px}
+.pane-r h2{margin:0 0 10px}
+.row.sel{border-color:var(--pri);background:var(--card2)}
+.row{cursor:pointer}
+@media(max-width:760px){.split{grid-template-columns:1fr}}
+#qr svg{width:220px;height:220px}

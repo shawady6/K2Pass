@@ -15,6 +15,11 @@ class AppPrefs(ctx: Context) {
         p.edit().putString("lan_secrets", l.joinToString(",")).apply()
     }
 
+    /** Windows app to push the vault to: "<secret>@<ip>:<port>" (from its pairing QR). */
+    var pcTarget: String
+        get() = p.getString("pc_target", "") ?: ""
+        set(v) { p.edit().putString("pc_target", v).apply() }
+
     fun clearLanSecrets() { p.edit().remove("lan_secrets").apply() }
 
     var autoLockMs: Long

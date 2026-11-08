@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import com.shawady.vault.core.LanPushClient
 import com.shawady.vault.core.LanSyncServer
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -68,12 +69,40 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
         return true
     }
 
+    var pcTarget by remember { mutableStateOf(prefs.pcTarget) }
+    fun pushToPc(): Unit {
+        val m = Regex("^([A-Za-z0-9_-]{43})@(\\d{1,3}(?:\\.\\d{1,3}){3}):(\\d{2,5})$").find(pcTarget) ?: run { status = "مفيش كمبيوتر مربوط."; return }
+        val vault = rawVault() ?: run { status = "مفيش خزنة تتبعت."; return }
+        status = "باعت الخزنة للكمبيوتر…"
+        Thread {
+            val r = LanPushClient.push(m.groupValues[2], m.groupValues[3].toInt(), Base64.decode(m.groupValues[1], Base64.URL_SAFE), vault)
+            main.post {
+                status = when (r) {
+                    LanPushClient.Result.OK -> "الخزنة وصلت الكمبيوتر ✔"
+                    LanPushClient.Result.DENIED -> "الكمبيوتر رفض الكود. اعمل ربط جديد من تطبيق الكمبيوتر."
+                    LanPushClient.Result.UNREACHABLE -> "مقدرتش أوصل للكمبيوتر. شغّل تطبيق K2Pass عليه، ونفس الواي فاي."
+                    LanPushClient.Result.REJECTED -> "الكمبيوتر ما قبلش الملف."
+                }
+            }
+        }.start()
+    }
+
     val scan = rememberLauncherForActivityResult(ScanContract()) { r ->
         val c = r.contents ?: return@rememberLauncherForActivityResult
-        val m = Regex("^k2pair://([A-Za-z0-9_-]{43})$").find(c.trim())
-        if (m == null) { status = "الكود ده مش كود ربط من إضافة K2Pass."; return@rememberLauncherForActivityResult }
-        prefs.addLanSecret(m.groupValues[1])
-        if (start()) status = "اتربط ✔. سيب الشاشة دي مفتوحة، والإضافة هتلاقي الموبايل لوحدها."
+        val m = Regex("^k2pair://([A-Za-z0-9_-]{43})(?:@(\\d{1,3}(?:\\.\\d{1,3}){3}):(\\d{2,5}))?$").find(c.trim())
+        if (m == null) { status = "الكود ده مش كود ربط من K2Pass."; return@rememberLauncherForActivityResult }
+        val ip = m.groupValues[2]
+        if (ip.isNotEmpty()) {
+            // Windows app: it listens, we push.
+            val o = ip.split('.').map { it.toInt() }
+            val priv = o.all { it <= 255 } && (o[0] == 10 || (o[0] == 192 && o[1] == 168) || (o[0] == 172 && o[1] in 16..31))
+            if (!priv) { status = "عنوان الكمبيوتر مش على شبكة محلية."; return@rememberLauncherForActivityResult }
+            pcTarget = "${m.groupValues[1]}@$ip:${m.groupValues[3]}"; prefs.pcTarget = pcTarget
+            pushToPc()
+        } else {
+            prefs.addLanSecret(m.groupValues[1])
+            if (start()) status = "اتربط ✔. سيب الشاشة دي مفتوحة، والإضافة هتلاقي الموبايل لوحدها."
+        }
     }
     DisposableEffect(Unit) { onDispose { server?.stop(); keepOn(false) } }
 
@@ -84,7 +113,8 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
                 ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                     .setPrompt("وجّه الكاميرا على الكود اللي في الإضافة").setBeepEnabled(false).setOrientationLocked(false),
             )
-        }, modifier = Modifier.fillMaxWidth()) { Text("📷 مسح كود الإضافة") }
+        }, modifier = Modifier.fillMaxWidth()) { Text("📷 مسح كود (إضافة المتصفح / تطبيق الكمبيوتر)") }
+        if (pcTarget.isNotEmpty()) OutlinedButton(onClick = { pushToPc() }, modifier = Modifier.fillMaxWidth()) { Text("📤 ابعت الخزنة لتطبيق الكمبيوتر") }
         if (prefs.lanSecrets.isNotEmpty() && server == null) {
             OutlinedButton(onClick = { if (start()) status = "المزامنة شغّالة. افتح الإضافة على الكمبيوتر." }, modifier = Modifier.fillMaxWidth()) {
                 Text("تشغيل المزامنة (الكمبيوتر مربوط قبل كده)")
@@ -96,8 +126,8 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
             OutlinedButton(onClick = { stop(); status = "المزامنة اتوقفت." }, modifier = Modifier.fillMaxWidth()) { Text("إيقاف") }
         }
         if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall)
-        if (prefs.lanSecrets.isNotEmpty()) {
-            OutlinedButton(onClick = { stop(); prefs.clearLanSecrets(); status = "اتلغى الربط مع كل الأجهزة." }) { Text("إلغاء ربط كل الأجهزة") }
+        if (prefs.lanSecrets.isNotEmpty() || pcTarget.isNotEmpty()) {
+            OutlinedButton(onClick = { stop(); prefs.clearLanSecrets(); prefs.pcTarget = ""; pcTarget = ""; status = "اتلغى الربط مع كل الأجهزة." }) { Text("إلغاء ربط كل الأجهزة") }
         }
     }
 }

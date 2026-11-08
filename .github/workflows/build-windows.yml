@@ -1,0 +1,51 @@
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+    paths: ['windows/**', 'extension/lib/**', 'extension/popup.css', '.github/workflows/build-windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: windows }
+
+      - name: Receiver tests (Rust)
+        working-directory: windows
+        run: cargo test -p k2-lan
+
+      - name: Copy shared UI code
+        shell: bash
+        run: sh windows/sync-ui.sh
+
+      - name: Build K2Pass.exe
+        working-directory: windows
+        run: |
+          npm install --no-save @tauri-apps/cli@2
+          npx tauri build --no-bundle --config src-tauri/tauri.conf.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: K2Pass-windows
+          path: windows/target/release/k2pass-windows.exe
+
+      - name: Publish to the "windows" pre-release
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp windows/target/release/k2pass-windows.exe K2Pass-Windows.exe
+          printf 'Windows app build of %s (phase A: view, search, copy, TOTP, receive vault from phone).\nsha256: %s\n' "${GITHUB_SHA::7}" "$(sha256sum K2Pass-Windows.exe | cut -d' ' -f1)" > wnotes.txt
+          gh release delete windows --cleanup-tag -y || true
+          gh release create windows K2Pass-Windows.exe --title "K2Pass for Windows (latest)" --notes-file wnotes.txt --target "$GITHUB_SHA" --prerelease

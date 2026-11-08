@@ -1,0 +1,6 @@
+ui/lib/
+ui/fonts/
+ui/icons/
+ui/base.css
+target/
+src-tauri/gen/
