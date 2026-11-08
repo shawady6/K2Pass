@@ -2,6 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — Extension v0.5.0
+- In-page suggestions: focusing a login field on an https page (or localhost) shows the matching accounts in a small glass dropdown; click / Enter fills user + password. Only works while the vault is unlocked (5-min window), only in the top frame.
+- Security: the page gets no passwords until you pick one; the background script takes the URL from the browser (not from the page), re-checks that the entry matches it, and refuses http pages. The popup ⚡ button still works anywhere.
+- New permission scope: a content script on https pages. Tests: 13 (suggestions + credential release); verified end-to-end in real Chromium.
+
 ## 2026-11-08 — v1.5.3
 - Fix: the QR scanner (extension pairing + TOTP) opened in landscape; the zxing activity is now overridden in the manifest to follow the phone's orientation.
 

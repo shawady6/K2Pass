@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "K2Pass",
-  "version": "0.4.1",
-  "description": "K2Pass — خزنة باسوردات أوفلاين. افتح ملف الخزنة المشفّر وانسخ أو املأ الباسوردات.",
+  "version": "0.5.0",
+  "description": "K2Pass — خزنة باسوردات أوفلاين. بتقترح حساباتك جوه صفحات الدخول وبتملاها بضغطة.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "K2Pass"
@@ -25,5 +25,18 @@
     "16": "icons/16.png",
     "48": "icons/48.png",
     "128": "icons/128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }

@@ -55,7 +55,7 @@ Both files are always the **latest build** (pre-release tag [`latest`](https://g
 | Platform | State |
 |---|---|
 | Android 10+ (minSdk 29, target 35) | ✅ Available |
-| Chrome / Edge / Brave extension | ✅ Available (read-only, autofill-by-button) |
+| Chrome / Edge / Brave extension | ✅ Available (read-only; suggests accounts inside login pages, one-click fill) |
 | Windows app | Planned |
 
 ## First use

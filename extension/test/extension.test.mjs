@@ -142,3 +142,27 @@ test('discover finds the phone among other hosts, ignores strangers, never leave
   // nobody home -> null
   assert.equal(await discover(secret, { fetchImpl: async () => { throw new TypeError('x'); }, subnets: ['10.9.9'], probeMs: 200 }), null);
 });
+
+// ---- in-page suggestions ----
+const { pageAllowed, suggestionsFor, credentialFor } = await import('../lib/suggest.js');
+
+test('suggestions: https/localhost only, matching entries, no passwords in the list', async () => {
+  const e = await readEntries(file, await unlockVault(file, 'Correct-Horse-9!'));
+  assert.ok(pageAllowed('https://github.com/login'));
+  assert.ok(pageAllowed('http://localhost:3000/'));
+  assert.ok(!pageAllowed('http://github.com/login'));
+  assert.ok(!pageAllowed('file:///x'));
+  const l = suggestionsFor(e, 'https://github.com/login');
+  assert.deepEqual(l, [{ id: '1', title: 'GitHub', user: 'ibrahim' }]);
+  assert.ok(!JSON.stringify(l).includes('pw-github'));
+  assert.deepEqual(suggestionsFor(e, 'http://github.com/login'), []);
+  assert.deepEqual(suggestionsFor(e, 'https://github.com.evil.io/'), []);
+});
+
+test('credential is released only for a page that matches the entry', async () => {
+  const e = await readEntries(file, await unlockVault(file, 'Correct-Horse-9!'));
+  assert.deepEqual(credentialFor(e, '1', 'https://gist.github.com/'), { user: 'ibrahim', pass: 'pw-github' });
+  assert.equal(credentialFor(e, '1', 'https://evil.io/'), null);
+  assert.equal(credentialFor(e, '3', 'https://github.com/'), null);   // a router entry never matches a site
+  assert.equal(credentialFor(e, '1', 'http://github.com/'), null);
+});
