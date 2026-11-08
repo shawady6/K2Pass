@@ -1,14 +1,12 @@
 package com.shawady.vault.app
 
 import android.app.Activity
-import android.graphics.Bitmap
-import android.graphics.Color as AColor
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.view.WindowManager
-import androidx.compose.foundation.Image
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -20,12 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.shawady.vault.core.LanSyncServer
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -42,22 +37,16 @@ private fun localIps(): List<String> =
             .filterIsInstance<Inet4Address>().filter { it.isSiteLocalAddress }.map { it.hostAddress!! }
     } catch (_: Exception) { emptyList() }
 
-private fun qr(text: String): Bitmap {
-    val m = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, 0, 0, mapOf(EncodeHintType.MARGIN to 1))
-    val bmp = Bitmap.createBitmap(m.width, m.height, Bitmap.Config.ARGB_8888)
-    for (x in 0 until m.width) for (y in 0 until m.height) bmp.setPixel(x, y, if (m[x, y]) AColor.BLACK else AColor.WHITE)
-    return bmp
-}
-
 /**
- * "Sync with the browser extension": while this card is on, the phone serves its (still encrypted) vault file on the local
- * network to anyone holding the pairing secret in the QR. Stops when you press stop, leave the tools tab, or lock the app.
+ * Sync with the browser extension. The extension shows a QR (`k2pair://<secret>`); the phone scans it, remembers the secret and
+ * serves its (still encrypted) vault on the local network to whoever proves knowledge of a remembered secret. The extension
+ * finds the phone on the LAN by itself. The server runs only while this card is on screen / started.
  */
 @Composable
 fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
     val ctx = LocalContext.current
     var server by remember { mutableStateOf<LanSyncServer?>(null) }
-    var link by remember { mutableStateOf("") }
+    var addr by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     val main = remember { Handler(Looper.getMainLooper()) }
 
@@ -65,37 +54,50 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
         val w = (ctx as? Activity)?.window ?: return
         if (on) w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) else w.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
-    fun stop() { server?.stop(); server = null; link = ""; keepOn(false) }
-    fun start() {
+    fun stop() { server?.stop(); server = null; addr = ""; keepOn(false) }
+    fun start(): Boolean {
+        if (server != null) return true
         val ips = localIps()
-        if (ips.isEmpty()) { status = "مفيش شبكة محلية. وصّل الموبايل بنفس الواي فاي اللي عليه الكمبيوتر (أو شغّل هوت سبوت)."; return }
-        val secret = android.util.Base64.decode(prefs.lanSecret, android.util.Base64.URL_SAFE)
-        val s = LanSyncServer(secret, rawVault) { ev ->
+        if (ips.isEmpty()) { status = "مفيش شبكة محلية. وصّل الموبايل بنفس الواي فاي اللي عليه الكمبيوتر (أو شغّل هوت سبوت)."; return false }
+        val s = LanSyncServer({ prefs.lanSecrets.map { Base64.decode(it, Base64.URL_SAFE) } }, rawVault) { ev ->
             val t = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())
             main.post { status = if (ev == "served") "الكمبيوتر سحب الخزنة ($t)" else "محاولة مرفوضة ($t)" }
         }
         val port = s.start()
-        server = s
-        link = "k2sync://${ips.first()}:$port/${prefs.lanSecret}"
-        status = "شغّال على ${ips.first()}:$port"
-        keepOn(true)
+        server = s; addr = "${ips.first()}:$port"; keepOn(true)
+        return true
+    }
+
+    val scan = rememberLauncherForActivityResult(ScanContract()) { r ->
+        val c = r.contents ?: return@rememberLauncherForActivityResult
+        val m = Regex("^k2pair://([A-Za-z0-9_-]{43})$").find(c.trim())
+        if (m == null) { status = "الكود ده مش كود ربط من إضافة K2Pass."; return@rememberLauncherForActivityResult }
+        prefs.addLanSecret(m.groupValues[1])
+        if (start()) status = "اتربط ✔. سيب الشاشة دي مفتوحة، والإضافة هتلاقي الموبايل لوحدها."
     }
     DisposableEffect(Unit) { onDispose { server?.stop(); keepOn(false) } }
 
     Section("مزامنة مع إضافة المتصفح") {
-        Text("بتشغّل سيرفر مؤقت على الواي فاي بيسمح للإضافة بسحب الخزنة المشفّرة (ماستر باسوردك ما بيتبعتش). اربط مرة واحدة بمسح الكود من الإضافة.")
-        if (server == null) {
-            Button(onClick = { start() }, modifier = Modifier.fillMaxWidth()) { Text("تشغيل المزامنة") }
-        } else {
-            val bmp = remember(link) { qr(link).asImageBitmap() }
-            Image(bmp, contentDescription = "كود الربط", modifier = Modifier.size(220.dp))
-            Text("الكود ده بيربط الكمبيوتر بخزنتك. ما تصوّرهوش ولا تبعتهوش لأي حد.", style = MaterialTheme.typography.bodySmall)
-            Text(link, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = { stop() }, modifier = Modifier.fillMaxWidth()) { Text("إيقاف") }
+        Text("١) في الإضافة على الكمبيوتر: ⋮ ← ربط الموبايل، هيظهر كود QR.  ٢) اضغط الزرار تحت وامسحه بكاميرا الموبايل. الاتنين لازم على نفس الواي فاي. الماستر باسورد ما بيتبعتش، الخزنة بتتسحب مشفّرة.")
+        Button(onClick = {
+            scan.launch(
+                ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                    .setPrompt("وجّه الكاميرا على الكود اللي في الإضافة").setBeepEnabled(false).setOrientationLocked(false),
+            )
+        }, modifier = Modifier.fillMaxWidth()) { Text("📷 مسح كود الإضافة") }
+        if (prefs.lanSecrets.isNotEmpty() && server == null) {
+            OutlinedButton(onClick = { if (start()) status = "المزامنة شغّالة. افتح الإضافة على الكمبيوتر." }, modifier = Modifier.fillMaxWidth()) {
+                Text("تشغيل المزامنة (الكمبيوتر مربوط قبل كده)")
+            }
+        }
+        if (server != null) {
+            Text("شغّال على $addr", style = MaterialTheme.typography.bodySmall)
+            Text("لو الإضافة ما لقتش الموبايل، اكتب العنوان ده فيها.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = { stop(); status = "المزامنة اتوقفت." }, modifier = Modifier.fillMaxWidth()) { Text("إيقاف") }
         }
         if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = { stop(); prefs.rotateLanSecret(); status = "اتلغى الربط مع كل الأجهزة. شغّل المزامنة واربط من جديد." }) {
-            Text("إلغاء ربط كل الأجهزة")
+        if (prefs.lanSecrets.isNotEmpty()) {
+            OutlinedButton(onClick = { stop(); prefs.clearLanSecrets(); status = "اتلغى الربط مع كل الأجهزة." }) { Text("إلغاء ربط كل الأجهزة") }
         }
     }
 }

@@ -108,3 +108,37 @@ test('pullVault speaks the protocol (mock phone) and handles denial / offline', 
   } finally { srv.close(); }
   await assert.rejects(pullVault({ ip: '127.0.0.1', port, secret: SECRET_B64URL }, 1000), /offline/);
 });
+
+// ---- discovery (extension shows QR, phone scans, extension finds the phone) ----
+const { newSecret, pairText, discover, isPrivateIp } = await import('../lib/sync.js');
+
+test('newSecret / pairText shape', () => {
+  const a = newSecret(), b = newSecret();
+  assert.match(a, /^[A-Za-z0-9_-]{43}$/);
+  assert.notEqual(a, b);
+  assert.equal(pairText(a), 'k2pair://' + a);
+});
+
+test('discover finds the phone among other hosts, ignores strangers, never leaves private ranges', async () => {
+  const phoneIp = '192.168.43.77';
+  const secret = newSecret();
+  const asked = [];
+  const phone = async (url, opts) => {   // fake fetch: only the phone answers; a stranger on :8765 answers /n but denies /v
+    const u = new URL(url); asked.push(u.hostname);
+    if (u.hostname === '192.168.43.20') return u.pathname === '/n' ? new Response('aa11') : new Response('no', { status: 403 });
+    if (u.hostname !== phoneIp) throw new TypeError('unreachable');
+    if (u.pathname === '/n') return new Response('0123456789abcdef0123456789abcdef');
+    const [n, mac] = u.searchParams.get('a').split('.');
+    const want = await macHex(secret, 'v|' + n);
+    return mac === want ? new Response(text) : new Response('no', { status: 403 });
+  };
+  const hit = await discover(secret, { fetchImpl: phone, probeMs: 500 });
+  assert.equal(hit.pair.ip, phoneIp);
+  assert.equal(hit.vault, text);
+  assert.ok(asked.every(isPrivateIp));
+  // prefer: the previous IP's /24 is tried first when the phone moved within the same subnet
+  const hit2 = await discover(secret, { fetchImpl: phone, prefer: '192.168.43.5', subnets: [], probeMs: 500 });
+  assert.equal(hit2.pair.ip, phoneIp);
+  // nobody home -> null
+  assert.equal(await discover(secret, { fetchImpl: async () => { throw new TypeError('x'); }, subnets: ['10.9.9'], probeMs: 200 }), null);
+});

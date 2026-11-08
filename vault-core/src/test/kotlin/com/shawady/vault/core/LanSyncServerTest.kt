@@ -8,7 +8,8 @@ import java.net.URL
 class LanSyncServerTest {
     private val secret = ByteArray(32) { it.toByte() }
     private var served = 0
-    private val srv = LanSyncServer(secret, { """{"v":1}""" }, { if (it == "served") served++ })
+    private val secret2 = ByteArray(32) { (it + 100).toByte() }
+    private val srv = LanSyncServer({ listOf(secret, secret2) }, { """{"v":1}""" }, { if (it == "served") served++ })
     private val port = srv.start(0)
 
     @After fun stop() = srv.stop()
@@ -34,6 +35,11 @@ class LanSyncServerTest {
         assertEquals(200 to """{"v":1}""", get("/v?a=$a"))
         assertEquals(403, get("/v?a=$a").first) // replay
         assertEquals(1, served)
+    }
+
+    @Test fun anyPairedSecretWorks() {
+        val n = nonce()
+        assertEquals(200, get("/v?a=$n." + LanSyncServer.macHex(secret2, "v|$n")).first)
     }
 
     @Test fun rejectsWrongSecretMissingAuthAndUnknownPaths() {

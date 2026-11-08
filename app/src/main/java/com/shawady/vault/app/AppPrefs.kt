@@ -6,15 +6,16 @@ import android.content.Context
 class AppPrefs(ctx: Context) {
     private val p = ctx.applicationContext.getSharedPreferences("k2_settings", Context.MODE_PRIVATE)
 
-    /** 32-byte pairing secret (base64url, no padding) for browser-extension LAN sync. Created on first use. */
-    var lanSecret: String
-        get() = p.getString("lan_secret", null) ?: newLanSecret().also { p.edit().putString("lan_secret", it).apply() }
-        set(v) { p.edit().putString("lan_secret", v).apply() }
+    /** Pairing secrets (base64url, 32 bytes each) of computers whose browser extension may pull the encrypted vault. */
+    val lanSecrets: List<String>
+        get() = (p.getString("lan_secrets", "") ?: "").split(',').filter { it.length == 43 }
 
-    fun rotateLanSecret() { lanSecret = newLanSecret() }
+    fun addLanSecret(s: String) {
+        val l = (lanSecrets + s).distinct().takeLast(5)
+        p.edit().putString("lan_secrets", l.joinToString(",")).apply()
+    }
 
-    private fun newLanSecret(): String =
-        android.util.Base64.encodeToString(ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }, android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP)
+    fun clearLanSecrets() { p.edit().remove("lan_secrets").apply() }
 
     var autoLockMs: Long
         get() = p.getLong("auto_lock_ms", 60_000L)

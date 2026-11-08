@@ -4,24 +4,25 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>K2Pass — ربط الموبايل</title>
 <link rel="stylesheet" href="popup.css">
-<style>body{width:auto;max-width:520px;margin:0 auto}video{width:100%;border-radius:18px;background:#000;max-height:320px}</style>
+<style>body{width:auto;max-width:520px;margin:0 auto}#qr{background:#fff;padding:12px;border-radius:16px;align-self:center;line-height:0}#qr svg{width:260px;height:260px}</style>
 </head>
 <body>
 <header><div class="brand"><img src="icons/48.png" alt="" width="26" height="26"><span>ربط الموبايل</span></div></header>
 <main>
   <div class="card">
     <h2>١) على الموبايل</h2>
-    <p>افتح K2Pass ← <b>الأدوات</b> ← <b>مزامنة مع إضافة المتصفح</b> ← <b>تشغيل المزامنة</b>. هيظهر كود QR. الموبايل لازم يكون على نفس الواي فاي.</p>
-    <h2>٢) هنا</h2>
-    <button id="start" class="primary">📷 افتح الكاميرا وامسح الكود</button>
-    <video id="video" class="hidden" playsinline muted></video>
-    <p class="hint">أو الصق الرابط اللي تحت الكود (k2sync://…):</p>
-    <input id="manual" type="search" placeholder="k2sync://192.168.1.20:8765/…" dir="ltr">
-    <button id="use-manual">ربط بالرابط</button>
-    <p id="msg" class="hint"></p>
+    <p>افتح K2Pass ← <b>الأدوات</b> ← <b>مزامنة مع إضافة المتصفح</b> ← <b>📷 مسح كود الإضافة</b>، ووجّه الكاميرا على الكود ده. الموبايل لازم يكون على نفس الواي فاي.</p>
+    <div id="qr"></div>
+    <p class="hint">الكود ده سرّ بيربط الكمبيوتر بخزنتك. ما تصوّرهوش.</p>
+    <h2>٢) انتظر</h2>
+    <p id="msg" class="hint">في انتظار مسح الكود…</p>
+    <p class="hint">لو الإضافة ما لقتش الموبايل لوحدها (شبكة مختلفة)، اكتب العنوان اللي ظاهر في التطبيق:</p>
+    <input id="manual" type="search" placeholder="192.168.1.20:8765" dir="ltr">
+    <button id="use-manual">ربط بالعنوان</button>
+    <button id="new-code">كود جديد</button>
   </div>
 </main>
-<script src="lib/jsQR.js"></script>
+<script src="lib/qrcode.js"></script>
 <script type="module" src="sync.js"></script>
 </body>
 </html>

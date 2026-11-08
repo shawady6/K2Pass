@@ -2,11 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
-## 2026-11-08 — v1.5 + extension v0.2: LAN sync phone → extension
-- App: Tools → "مزامنة مع إضافة المتصفح": starts `LanSyncServer` (vault-core, plain `ServerSocket`, no new dependency) on the local network and shows a pairing QR (`k2sync://<ip>:<port>/<secret>`). It serves the vault file exactly as stored (still encrypted). Auth: single-use nonce (30 s) + HMAC-SHA256(secret, "v|"+nonce), constant-time compare, 403 delay. Runs only while the card is open; "إلغاء ربط كل الأجهزة" rotates the secret.
-- Extension: `sync.html` pairs by scanning the QR with the computer webcam (jsQR, bundled) or by pasting the link; the popup then auto-pulls on open and has a 🔄 button. Only private IPs are accepted.
-- Verified: Kotlin server unit tests (valid, replay, wrong secret, missing auth, 404) + JS client tests + HMAC vector shared between Kotlin and JS + end-to-end in real Chromium against a mock server with the same headers (pair → unlock → auto-sync → "already up to date" → phone offline message) + jsQR decoding of a QR image. NOT verified on a real phone/Wi-Fi, nor the webcam path.
-- Security note: the pairing QR is a bearer secret for downloading the *encrypted* vault; the master password is never sent.
+## 2026-11-08 — v1.5 + extension v0.3: pair by scanning the computer's QR with the phone camera
+- Extension (`sync.html`) shows a QR (`k2pair://<secret>`) on the computer; the phone scans it (Tools → "مزامنة مع إضافة المتصفح" → 📷). Because a browser cannot accept connections, the extension then discovers the phone on the LAN (port 8765, common private subnets, `discover()`), proving identity with the secret; manual `ip:port` fallback. The popup auto-pulls on open, has a 🔄 button, and re-discovers if the phone's IP changed.
+- App: `LanSyncServer` (vault-core, plain `ServerSocket`) serves the vault exactly as stored (still encrypted). Auth: single-use nonce (30 s) + HMAC-SHA256(secret, "v|"+nonce), constant-time compare over all paired secrets (max 5 computers), 403 delay. Runs only while the app card is active (screen kept on); "إلغاء ربط كل الأجهزة" clears all secrets.
+- Verified: Kotlin server tests (valid, replay, wrong secret, any-of-several secrets, missing auth, 404) + JS client/discovery tests + HMAC vector shared between Kotlin and JS + end-to-end in real Chromium (QR drawn on the page decodes to the pairing text → phone starts answering → extension finds it → vault pulled → unlock → list). NOT verified: the phone's camera scan, real Wi-Fi, Android server on a real device.
+- Security note: the QR is a bearer secret for downloading the *encrypted* vault; the master password is never sent.
 
 ## 2026-11-08 — browser extension v0.1 (Chrome / Edge)
 - New `extension/` (Manifest V3): import the exported encrypted vault, unlock with the master password (Argon2id via bundled hash-wasm, WebCrypto AES-GCM), search (incl. IP/notes/folders), folder filter, copy user/password/TOTP, fill login forms (⚡, on click only), 5-min auto-lock, matching to the current site first.

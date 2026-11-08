@@ -1,4 +1,4 @@
-# K2Pass — browser extension (Chrome / Edge, v0.2)
+# K2Pass — browser extension (Chrome / Edge, v0.3)
 
 Offline companion for the K2Pass Android app. **Read-only in this version**: it opens the encrypted vault file exported from the phone,
 lets you search, copy usernames/passwords/TOTP codes and fill login forms. No network access, no servers.
@@ -10,14 +10,14 @@ lets you search, copy usernames/passwords/TOTP codes and fill login forms. No ne
 
 To update: replace the folder contents with the new zip and press the reload icon on the extension card.
 
-## Sync with the phone (v0.2)
-1. Phone: Tools → **مزامنة مع إضافة المتصفح** → **تشغيل المزامنة** (same Wi-Fi as the computer). A QR appears.
-2. Extension menu ⋮ → **ربط الموبايل** → scan the QR with the computer's webcam (or paste the `k2sync://…` link shown under the QR).
-3. From then on, every time you open the extension (and with the 🔄 button) it pulls the latest vault from the phone if the phone's sync screen is on. If the phone is off/unreachable the extension just keeps using its stored copy.
-- What travels: only the vault file as stored on the phone — still encrypted by the master password. The pairing secret (in the QR) only decides who may download it; each request is authenticated with a single-use nonce + HMAC-SHA256, the server refuses everything else, and the extension refuses to talk to any non-private IP.
-- The phone serves only while the sync card is open (screen kept awake). "إلغاء ربط كل الأجهزة" rotates the secret.
-- Direction is phone → computer only. Edits made on the computer are not possible yet (read-only).
-- Limits: plain HTTP on your LAN (content is encrypted anyway); guest/isolated Wi-Fi networks that block device-to-device traffic will not work — use the phone hotspot instead.
+## Sync with the phone (v0.3)
+1. Computer: extension menu ⋮ → **ربط الموبايل**. A QR is shown on the computer screen.
+2. Phone: K2Pass → Tools → **مزامنة مع إضافة المتصفح** → **📷 مسح كود الإضافة** → point the camera at the computer screen. Leave that card open (same Wi-Fi).
+3. The extension (a browser cannot accept connections) looks for the phone by itself on the LAN (port 8765, common home/hotspot subnets, private addresses only) and proves it is the right phone with the secret from the QR. If it does not find it, type the address shown in the app.
+4. From then on, every time you open the extension (and with the 🔄 button) it pulls the latest vault from the phone if the phone's sync card is on; if the phone's IP changed it searches again. If the phone is unreachable the extension keeps using its stored copy.
+- What travels: only the vault file as stored on the phone — still encrypted by the master password. The QR secret only decides who may download it; each request uses a single-use nonce + HMAC-SHA256; the phone refuses everything else; the extension refuses non-private IPs. Up to 5 computers can be paired; "إلغاء ربط كل الأجهزة" in the app revokes all.
+- Direction is phone → computer only (read-only extension).
+- Limits: plain HTTP on your LAN (content is encrypted anyway); Wi-Fi networks that isolate devices (guest/public) will not work — use the phone hotspot. Scanning probes ~4,000 private addresses on port 8765 during pairing (only while the pairing page is open).
 
 ## How it works
 - Vault format v1 (see `vault-core/.../VaultCrypto.kt`): Argon2id (hash-wasm, WebAssembly) → KEK → unwraps the vault key → AES-256-GCM (WebCrypto); header is the AAD.

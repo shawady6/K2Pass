@@ -15,13 +15,13 @@ import javax.crypto.spec.SecretKeySpec
  * It only ever serves the vault file as stored on disk — still encrypted by the master password — so an eavesdropper on the Wi-Fi
  * learns nothing usable; the pairing secret (shown as a QR on the phone) only decides WHO may download it.
  *
- * Protocol (all GET):
+ * Several computers can be paired (each has its own secret). Protocol (all GET):
  *   /n            -> 32-hex single-use nonce (valid 30 s)
  *   /v?a=<nonce>.<hex(HMAC-SHA256(secret, "v|"+nonce))>  -> the vault file (200) or 403
  * Everything else -> 404. CORS is open (the response is useless without the secret) so extension pages can read it.
  */
 class LanSyncServer(
-    private val secret: ByteArray,
+    private val secrets: () -> List<ByteArray>,
     private val vaultProvider: () -> String?,
     private val onEvent: (String) -> Unit = {},
 ) {
@@ -99,7 +99,10 @@ class LanSyncServer(
         if (nonce.isEmpty() || mac.isEmpty()) return false
         val exp = nonces.remove(nonce) ?: return false          // single use
         if (exp < System.currentTimeMillis()) return false
-        return MessageDigest.isEqual(mac.lowercase().toByteArray(), macHex(secret, "v|$nonce").toByteArray())
+        val given = mac.lowercase().toByteArray()
+        var ok = false
+        for (sec in secrets()) if (MessageDigest.isEqual(given, macHex(sec, "v|$nonce").toByteArray())) ok = true   // no early exit
+        return ok
     }
 
     private fun respond(c: Socket, code: Int, body: String, type: String = "text/plain") {

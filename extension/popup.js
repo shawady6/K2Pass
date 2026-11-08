@@ -2,7 +2,7 @@ import { parseVaultFile, unlockVault, readEntries, b64e, b64d } from './lib/vaul
 import { totp } from './lib/totp.js';
 import { matchesHost, isLive, FOLDER_TYPE, folderKey, allUrls } from './lib/match.js';
 import { fillInPage } from './lib/fill.js';
-import { pullVault } from './lib/sync.js';
+import { pullVault, discover } from './lib/sync.js';
 
 const $ = (id) => document.getElementById(id);
 const LOCK_MIN = 5;           // auto-lock after 5 minutes without opening the popup
@@ -157,7 +157,15 @@ async function syncNow(silent) {
   if (syncing) return; syncing = true;
   const btn = $('btn-sync'); btn.textContent = '⏳';
   try {
-    const text = await pullVault(pair, silent ? 1500 : 5000);
+    let text;
+    try { text = await pullVault(pair, silent ? 1500 : 5000); }
+    catch (e) {
+      if (e.message !== 'offline') throw e;
+      // The phone's IP may have changed (DHCP): look for it again, starting with the same /24.
+      const hit = await discover(pair.secret, { prefer: pair.ip, subnets: [], probeMs: 600 });
+      if (!hit) throw e;
+      text = hit.vault; await chrome.storage.local.set({ pair: hit.pair });
+    }
     const { vault } = await chrome.storage.local.get('vault');
     if (text === vault) { if (!silent) toast('الخزنة محدّثة بالفعل'); return; }
     const f = parseVaultFile(text);
