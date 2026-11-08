@@ -285,6 +285,8 @@ class MainActivity : FragmentActivity() {
         screen = Screen.Vault
     }
 
+    private fun exportName() = "k2pass-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".vault"
+
     private fun moveToCategory(ids: List<String>, cat: String) {
         val d = Session.data ?: return
         val now = System.currentTimeMillis()
@@ -695,7 +697,7 @@ class MainActivity : FragmentActivity() {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Button(onClick = {
                                             backupHidden = true
-                                            exportLauncher.launch("k2pass-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".vault")
+                                            exportLauncher.launch(exportName())
                                         }) { Text("صدّر دلوقتي") }
                                         TextButton(onClick = { prefs.backupSnoozeUntilMs = now + 7 * 86_400_000L; backupHidden = true }) { Text("بعد أسبوع") }
                                     }
@@ -1117,26 +1119,12 @@ class MainActivity : FragmentActivity() {
     @Composable
     private fun ToolsScreen() {
         val ctx = LocalContext.current
-        var len by remember { mutableStateOf(20f) }
-        var sym by remember { mutableStateOf(true) }
-        var gen by remember { mutableStateOf(PasswordGenerator.generate(20, true)) }
         val withTotp = entries.filter { it.trashedAt == 0L && !it.totpSecret.isNullOrBlank() }
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("الأدوات", style = MaterialTheme.typography.titleLarge)
-
-            Section("مولّد الباسورد") {
-                Text(gen, style = MaterialTheme.typography.titleMedium)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = { gen = PasswordGenerator.generate(len.toInt(), sym) }) { Text("توليد") }
-                    TextButton(onClick = { copySensitive(ctx, "password", gen) }) { Text("نسخ") }
-                    Checkbox(checked = sym, onCheckedChange = { sym = it })
-                    Text("رموز   الطول ${len.toInt()}")
-                }
-                Slider(value = len, onValueChange = { len = it }, valueRange = 8f..48f)
-            }
 
             Section("المصادقة (TOTP)") {
                 if (withTotp.isEmpty()) {
@@ -1163,7 +1151,7 @@ class MainActivity : FragmentActivity() {
                 Text("١) استورد ودمج ملف الجهاز التاني  ٢) صدّر الملف المدموج وانقله له.")
                 OutlinedButton(onClick = { mergeLauncher.launch(arrayOf("*/*")) }) { Text("استيراد ودمج ملف") }
                 OutlinedButton(onClick = {
-                    exportLauncher.launch("k2pass-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".vault")
+                    exportLauncher.launch(exportName())
                 }) { Text("تصدير نسخة مشفرة") }
             }
 

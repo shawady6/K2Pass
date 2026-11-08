@@ -45,12 +45,7 @@ class VaultAutofillService : AutofillService() {
             .putExtra(EXTRA_REG, parsed.registration)
 
         // Must be mutable: the autofill framework adds its own extras to this intent.
-        val sender = PendingIntent.getActivity(
-            this,
-            (System.nanoTime() and 0x7fffffff).toInt(),
-            intent,
-            PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_MUTABLE,
-        ).intentSender
+        val sender = authSender(intent, mutable = true)
 
         val ids = listOfNotNull(parsed.userId, parsed.passId, parsed.confirmId).toTypedArray()
         val presentation = android.widget.RemoteViews(packageName, R.layout.autofill_item)
@@ -81,12 +76,7 @@ class VaultAutofillService : AutofillService() {
             val intent = Intent(this, AuthActivity::class.java)
                 .putExtra(EXTRA_MODE, MODE_SAVE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            val sender = PendingIntent.getActivity(
-                this,
-                (System.nanoTime() and 0x7fffffff).toInt(),
-                intent,
-                PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            ).intentSender
+            val sender = authSender(intent, mutable = false)
             callback.onSuccess(sender)
         } catch (e: Exception) {
             callback.onFailure(null)
@@ -113,4 +103,12 @@ class VaultAutofillService : AutofillService() {
             return b.build()
         }
     }
+
+    /** Mutable only where the autofill framework must add its own extras to the intent. */
+    private fun authSender(intent: Intent, mutable: Boolean) = PendingIntent.getActivity(
+        this,
+        (System.nanoTime() and 0x7fffffff).toInt(),
+        intent,
+        PendingIntent.FLAG_CANCEL_CURRENT or (if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE),
+    ).intentSender
 }

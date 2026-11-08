@@ -2,6 +2,10 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — v1.5.2 (duplicate-code cleanup, no behaviour change)
+- Audit with jscpd (exact clones: only import blocks) + manual review. Removed the Tools-tab password generator (duplicate of the Generator tab); one `exportName()`; AuthActivity link/update prompts share `commitReplace()`; autofill service builds PendingIntents via one `authSender()`. The editor's inline generator is kept but uses the same `Gen` engine.
+- Known remaining (intentional): the matching/TOTP/secret-field rules exist twice (Kotlin app and JS extension); parity is protected by shared test vectors, not shared code.
+
 ## 2026-11-08 — v1.5.1 (was mistakenly built as 1.5 twice) + extension v0.3: pair by scanning the computer's QR with the phone camera
 - Extension (`sync.html`) shows a QR (`k2pair://<secret>`) on the computer; the phone scans it (Tools → "مزامنة مع إضافة المتصفح" → 📷). Because a browser cannot accept connections, the extension then discovers the phone on the LAN (port 8765, common private subnets, `discover()`), proving identity with the secret; manual `ip:port` fallback. The popup auto-pulls on open, has a 🔄 button, and re-discovers if the phone's IP changed.
 - App: `LanSyncServer` (vault-core, plain `ServerSocket`) serves the vault exactly as stored (still encrypted). Auth: single-use nonce (30 s) + HMAC-SHA256(secret, "v|"+nonce), constant-time compare over all paired secrets (max 5 computers), 403 delay. Runs only while the app card is active (screen kept on); "إلغاء ربط كل الأجهزة" clears all secrets.

@@ -136,6 +136,17 @@ class AuthActivity : FragmentActivity() {
         super.onDestroy()
     }
 
+    /** Replace [old] with [new] in the vault, save, toast and finish (or cancel when saving fails). */
+    private fun commitReplace(u: Unlocked, old: Entry, new: Entry, toast: String) {
+        if (persist(u, VaultData(u.data.entries.filter { it.id != old.id } + new))) {
+            Toast.makeText(this, toast, Toast.LENGTH_SHORT).show()
+            setResult(RESULT_OK)
+            finish()
+        } else {
+            cancel()
+        }
+    }
+
     private fun newIdentifier(): String? = when {
         pkg != null -> "androidapp://$pkg"
         domain != null -> "https://$domain"
@@ -152,13 +163,7 @@ class AuthActivity : FragmentActivity() {
                     val id = newIdentifier() ?: return@Button
                     val urls = ((target.extra[URLS_KEY] ?: "").lines().map { it.trim() }.filter { it.isNotEmpty() } + id).distinct().joinToString("\n")
                     val ne = target.copy(extra = target.extra + (URLS_KEY to urls), updatedAt = System.currentTimeMillis())
-                    if (persist(u, VaultData(u.data.entries.filter { it.id != target.id } + ne))) {
-                        Toast.makeText(this@AuthActivity, "اتربط بالحساب الموجود", Toast.LENGTH_SHORT).show()
-                        setResult(RESULT_OK)
-                        finish()
-                    } else {
-                        cancel()
-                    }
+                    commitReplace(u, target, ne, "اتربط بالحساب الموجود")
                 }) { Text("ربط") }
                 OutlinedButton(onClick = { linkTarget = null }) { Text("حفظ كعنصر جديد") }
             }
@@ -174,13 +179,7 @@ class AuthActivity : FragmentActivity() {
                 Button(onClick = {
                     val hist = (listOf(target.copy(history = emptyList()).withoutVoice()) + target.history).take(20)
                     val ne = target.copy(password = savePass, updatedAt = System.currentTimeMillis(), history = hist)
-                    if (persist(u, VaultData(u.data.entries.filter { it.id != target.id } + ne))) {
-                        Toast.makeText(this@AuthActivity, "اتحدّث الباسورد", Toast.LENGTH_SHORT).show()
-                        setResult(RESULT_OK)
-                        finish()
-                    } else {
-                        cancel()
-                    }
+                    commitReplace(u, target, ne, "اتحدّث الباسورد")
                 }) { Text("تحديث") }
                 OutlinedButton(onClick = { cancel() }) { Text("لأ") }
             }
