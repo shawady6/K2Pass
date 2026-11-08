@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — Extension v0.4.1
+- New logo: gradient tile with a shield + keyhole (16/48/128 px + logo.svg).
+
 ## 2026-11-08 — Extension v0.4.0 (new look, app unchanged)
 - Popup + pairing page redesigned to match the app: glass-dark, IBM Plex Sans Arabic (bundled), SVG icons instead of emoji, hero cards for import/unlock, search with icon, step-by-step pairing with a live status pill, spinning sync icon, "ربط الموبايل" button on the first screen.
 - No logic/protocol change; extension tests still pass.
