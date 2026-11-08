@@ -74,3 +74,32 @@ export async function discover(secret, { subnets = DEFAULT_SUBNETS, prefer = nul
   await Promise.all(Array.from({ length: concurrency }, worker));
   return found;
 }
+
+/** Pure: /24 prefixes ("192.168.31") of private IPv4 addresses found in ICE candidate lines (mDNS ".local" names are ignored). */
+export function subnetsFromCandidates(lines) {
+  const out = [];
+  for (const l of lines) for (const ip of l.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) || []) {
+    if (!isPrivateIp(ip)) continue;
+    const sn = ip.split('.').slice(0, 3).join('.');
+    if (!out.includes(sn)) out.push(sn);
+  }
+  return out;
+}
+
+/** This computer's real LAN /24(s), via a throw-away WebRTC connection (no traffic leaves the machine). [] when hidden/unavailable. */
+export async function localSubnets(timeoutMs = 1500) {
+  if (typeof RTCPeerConnection === 'undefined') return [];
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  const lines = [];
+  try {
+    pc.createDataChannel('k2');
+    pc.onicecandidate = (e) => { if (e.candidate) lines.push(e.candidate.candidate); };
+    await pc.setLocalDescription(await pc.createOffer());
+    await new Promise((r) => { const t = setTimeout(r, timeoutMs); pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); r(); } }; });
+    lines.push(...(pc.localDescription.sdp.split('\n')));
+  } catch { /* blocked */ } finally { pc.close(); }
+  return subnetsFromCandidates(lines);
+}
+
+/** Every 192.168.x /24 not in [skip] — the slow, last-resort sweep for unusual router setups. */
+export const wideSubnets = (skip = []) => Array.from({ length: 256 }, (_, i) => `192.168.${i}`).filter((x) => !skip.includes(x));

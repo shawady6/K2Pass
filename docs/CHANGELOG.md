@@ -2,6 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — Extension v0.6.0 (smarter phone discovery)
+- Pairing page first asks the browser for this computer's real LAN subnet (WebRTC local candidates; nothing leaves the PC) and scans it first, then the common home subnets, then — as an alternating slow pass — every 192.168.x.0/24 (covers odd routers such as 192.168.31.x). The status line says what it is doing.
+- If the browser hides local IPs (mDNS), it silently falls back to the lists above. Manual IP entry still works.
+- Tests: 15 (candidate parsing, wide sweep). WebRTC itself could not be verified in the cloud sandbox (no private LAN there).
+
 ## 2026-11-08 — Extension v0.5.1
 - Logo now identical to the app's (padlock with a K, violet→cyan); the 0.4.1 shield is dropped so extension and app share one identity.
 

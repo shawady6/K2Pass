@@ -166,3 +166,21 @@ test('credential is released only for a page that matches the entry', async () =
   assert.equal(credentialFor(e, '3', 'https://github.com/'), null);   // a router entry never matches a site
   assert.equal(credentialFor(e, '1', 'http://github.com/'), null);
 });
+
+// ---- local subnet detection ----
+const { subnetsFromCandidates, wideSubnets } = await import('../lib/sync.js');
+test('subnets come from private ICE candidates only (mDNS and public ignored)', () => {
+  const l = [
+    'candidate:1 1 udp 2113937151 192.168.31.57 54321 typ host',
+    'candidate:2 1 udp 2113937151 abcd-1234.local 54322 typ host',
+    'candidate:3 1 udp 1677729535 41.196.10.5 54323 typ srflx raddr 0.0.0.0',
+    'c=IN IP4 10.20.30.4',
+    'candidate:4 1 udp 2113937151 192.168.31.99 54324 typ host',
+  ];
+  assert.deepEqual(subnetsFromCandidates(l), ['192.168.31', '10.20.30']);
+  assert.deepEqual(subnetsFromCandidates(['candidate:x 1 udp 1 abc.local 1 typ host']), []);
+});
+test('wide sweep covers 192.168.0-255 minus what was already tried', () => {
+  const w = wideSubnets(['192.168.1', '192.168.0']);
+  assert.equal(w.length, 254); assert.ok(!w.includes('192.168.1')); assert.ok(w.includes('192.168.31'));
+});
