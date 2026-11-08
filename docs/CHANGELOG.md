@@ -2,6 +2,10 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — Extension v0.4.0 (new look, app unchanged)
+- Popup + pairing page redesigned to match the app: glass-dark, IBM Plex Sans Arabic (bundled), SVG icons instead of emoji, hero cards for import/unlock, search with icon, step-by-step pairing with a live status pill, spinning sync icon, "ربط الموبايل" button on the first screen.
+- No logic/protocol change; extension tests still pass.
+
 ## 2026-11-08 — v1.5.2 (duplicate-code cleanup, no behaviour change)
 - Audit with jscpd (exact clones: only import blocks) + manual review. Removed the Tools-tab password generator (duplicate of the Generator tab); one `exportName()`; AuthActivity link/update prompts share `commitReplace()`; autofill service builds PendingIntents via one `authSender()`. The editor's inline generator is kept but uses the same `Gen` engine.
 - Known remaining (intentional): the matching/TOTP/secret-field rules exist twice (Kotlin app and JS extension); parity is protected by shared test vectors, not shared code.

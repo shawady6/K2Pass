@@ -3,6 +3,8 @@ import { totp } from './lib/totp.js';
 import { matchesHost, isLive, FOLDER_TYPE, folderKey, allUrls } from './lib/match.js';
 import { fillInPage } from './lib/fill.js';
 import { pullVault, discover } from './lib/sync.js';
+import { icon, hydrate } from './lib/icons.js';
+hydrate();
 
 const $ = (id) => document.getElementById(id);
 const LOCK_MIN = 5;           // auto-lock after 5 minutes without opening the popup
@@ -55,8 +57,8 @@ async function load(key) {
   const sel = $('folder');
   sel.innerHTML = '';
   const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
-  add('', 'كل العناصر'); add('fav', '⭐ المفضلة');
-  folders.sort((a, b) => a.title.localeCompare(b.title)).forEach((f) => add(folderKey(f), '📂 ' + f.title));
+  add('', 'كل العناصر'); add('fav', 'المفضلة');
+  folders.sort((a, b) => a.title.localeCompare(b.title)).forEach((f) => add(folderKey(f), f.title));
   show('v-list'); render();
 }
 
@@ -85,8 +87,8 @@ function render() {
 }
 const sec = (t) => Object.assign(document.createElement('div'), { className: 'sec', textContent: t });
 
-function btn(txt, title, fn) {
-  const b = document.createElement('button'); b.textContent = txt; b.title = title;
+function btn(ic, title, fn, cls) {
+  const b = document.createElement('button'); b.append(icon(ic, 16)); b.title = title; if (cls) b.className = cls;
   b.onclick = (ev) => { ev.stopPropagation(); fn(); }; return b;
 }
 
@@ -95,13 +97,16 @@ function row(e) {
   const top = document.createElement('div'); top.className = 'row-top';
   const av = Object.assign(document.createElement('div'), { className: 'avatar', textContent: (e.title || '?').trim().slice(0, 1).toUpperCase() });
   const info = document.createElement('div'); info.className = 'info';
-  info.append(Object.assign(document.createElement('div'), { className: 'title', textContent: (e.fav ? '⭐ ' : '') + e.title }),
+  const ttl = Object.assign(document.createElement('div'), { className: 'title' });
+  if (e.fav) ttl.append(icon('star', 13));
+  ttl.append(document.createTextNode(e.title));
+  info.append(ttl,
     Object.assign(document.createElement('div'), { className: 'sub', textContent: subtitle(e) }));
   info.onclick = () => { openId = openId === e.id ? null : e.id; render(); };
   const acts = document.createElement('div'); acts.className = 'acts';
-  if (e.user) acts.append(btn('👤', 'نسخ اسم المستخدم', () => copy(e.user, 'اسم المستخدم')));
-  if (e.pass) acts.append(btn('🔑', 'نسخ الباسورد', () => copy(e.pass, 'الباسورد')));
-  if ((e.type || 'login') === 'login' && tabId != null && pageHost) acts.append(btn('⚡', 'ملء الصفحة', () => fill(e)));
+  if (e.user) acts.append(btn('user', 'نسخ اسم المستخدم', () => copy(e.user, 'اسم المستخدم')));
+  if (e.pass) acts.append(btn('key', 'نسخ الباسورد', () => copy(e.pass, 'الباسورد')));
+  if ((e.type || 'login') === 'login' && tabId != null && pageHost) acts.append(btn('bolt', 'ملء الصفحة', () => fill(e), 'fillb'));
   top.append(av, info, acts); d.append(top);
   if (openId === e.id) d.append(details(e));
   return d;
@@ -110,16 +115,16 @@ function row(e) {
 function field(k, v, secret) {
   const f = document.createElement('div'); f.className = 'f';
   const val = Object.assign(document.createElement('span'), { className: 'v', textContent: secret ? '••••••••' : v });
-  const eye = secret ? btn('👁', 'إظهار', () => { val.textContent = val.textContent === '••••••••' ? v : '••••••••'; }) : null;
+  const eye = secret ? btn('eye', 'إظهار', () => { const hid = val.textContent === '••••••••'; val.textContent = hid ? v : '••••••••'; eye.replaceChildren(icon(hid ? 'eyeoff' : 'eye', 16)); }) : null;
   f.append(Object.assign(document.createElement('span'), { className: 'k', textContent: k }), val);
   if (eye) f.append(eye);
-  f.append(btn('📋', 'نسخ', () => copy(v, k)));
+  f.append(btn('copy', 'نسخ', () => copy(v, k)));
   return f;
 }
 
 function details(e) {
   const d = document.createElement('div'); d.className = 'det';
-  const fn = folderName(e); if (fn) d.append(field('الفولدر', '📂 ' + fn, false));
+  const fn = folderName(e); if (fn) d.append(field('الفولدر', fn, false));
   if (e.user) d.append(field('المستخدم', e.user, false));
   if (e.pass) d.append(field('الباسورد', e.pass, true));
   for (const u of allUrls(e)) d.append(field('الرابط', u, false));
@@ -130,7 +135,7 @@ function details(e) {
     const tick = async () => { const r = await totp(e.totp); if (r) { code.textContent = r.code; left.textContent = r.secondsLeft + ' ث'; code.dataset.c = r.code; } };
     tick(); otpTimer = setInterval(tick, 1000);
     f.append(Object.assign(document.createElement('span'), { className: 'k', textContent: 'كود TOTP' }), code, left,
-      btn('📋', 'نسخ الكود', () => copy(code.dataset.c || '', 'كود TOTP')));
+      btn('copy', 'نسخ الكود', () => copy(code.dataset.c || '', 'كود TOTP')));
     d.append(f);
   }
   const secretKeys = new Set(['privkey', 'passphrase', 'cvv', 'number', 'password']);
@@ -155,7 +160,7 @@ async function syncNow(silent) {
   const { pair } = await chrome.storage.local.get('pair');
   if (!pair) { if (!silent) { toast('اربط الموبايل الأول'); chrome.tabs.create({ url: chrome.runtime.getURL('sync.html') }); } return; }
   if (syncing) return; syncing = true;
-  const btn = $('btn-sync'); btn.textContent = '⏳';
+  const sb = $('btn-sync'); sb.classList.add('spin');
   try {
     let text;
     try { text = await pullVault(pair, silent ? 1500 : 5000); }
@@ -178,13 +183,13 @@ async function syncNow(silent) {
     show('v-unlock'); toast('في نسخة جديدة. اكتب الماستر باسورد.');
   } catch (e) {
     if (!silent) toast(e.message === 'denied' ? 'الموبايل رفض الكود. أعد الربط.' : 'الموبايل مش متاح. شغّل المزامنة في التطبيق (نفس الواي فاي).');
-  } finally { syncing = false; btn.textContent = '🔄'; }
+  } finally { syncing = false; sb.classList.remove('spin'); }
 }
 
 async function doUnlock() {
   $('unlock-err').textContent = '';
   const pw = $('pw').value; if (!pw) return;
-  const b = $('btn-unlock'); b.disabled = true; b.textContent = '…بفتح';
+  const b = $('btn-unlock'); b.disabled = true; b.textContent = 'بفتح…';
   try {
     const key = await unlockVault(vaultFile, pw);
     $('pw').value = '';
@@ -204,7 +209,7 @@ $('btn-unlock').onclick = doUnlock;
 $('pw').onkeydown = (e) => { if (e.key === 'Enter') doUnlock(); };
 $('btn-lock').onclick = lock;
 $('btn-sync').onclick = () => syncNow(false);
-$('m-pair').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('sync.html') });
+$('btn-pair').onclick = $('m-pair').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('sync.html') });
 $('q').oninput = render; $('folder').onchange = render;
 $('btn-menu').onclick = () => $('menu').classList.toggle('hidden');
 $('m-replace').onclick = () => { $('menu').classList.add('hidden'); chrome.runtime.sendMessage({ type: 'lock-now' }); show('v-import'); };

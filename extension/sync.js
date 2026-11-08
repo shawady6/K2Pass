@@ -1,8 +1,10 @@
 import { newSecret, pairText, discover, pullVault, isPrivateIp, PORT } from './lib/sync.js';
 import { parseVaultFile } from './lib/vault.js';
+import { hydrate } from './lib/icons.js';
+hydrate();
 
 const $ = (id) => document.getElementById(id);
-const say = (t, err) => { $('msg').textContent = t; $('msg').className = err ? 'err' : 'hint'; };
+const say = (t, err, ok) => { $('msg').textContent = t; $('status').className = 'status' + (err ? ' bad' : ok ? ' ok' : ''); };
 let secret = null, ctl = null, done = false;
 
 function drawQr(text) {
@@ -16,7 +18,7 @@ async function adopt({ pair, vault }) {
   await chrome.storage.local.set({ pair, vault });
   await chrome.storage.session.remove(['k', 'until']);   // the old vault key belongs to the old file
   done = true; if (ctl) ctl.abort();
-  say(`اتربط ✔ (${pair.ip}). افتح أيقونة الإضافة واكتب الماستر باسورد.`);
+  say(`اتربط بنجاح (${pair.ip}). افتح أيقونة الإضافة واكتب الماستر باسورد.`, false, true);
 }
 
 async function loop(mySecret) {
