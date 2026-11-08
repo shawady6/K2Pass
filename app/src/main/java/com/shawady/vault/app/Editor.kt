@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -88,6 +90,13 @@ fun EntryEditor(
     var symbols by remember { mutableStateOf(true) }
     var err by remember { mutableStateOf<String?>(null) }
     var historyOpen by remember { mutableStateOf(false) }
+    val scanLauncher = androidx.activity.compose.rememberLauncherForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { r ->
+        val c = r.contents
+        if (c != null) {
+            if (com.shawady.vault.core.Totp.generate(c) != null) { totp = c.trim(); showTotp = false }
+            else android.widget.Toast.makeText(ctx, "الـ QR ده مش مفتاح تحقق صالح", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
     // Unsaved-changes guard: compare against the values the screen started with.
     fun snap() = listOf(title, username, password, url, notes, totp, cat, fav.toString(), type, extra.toSortedMap().toString()).joinToString("\u0001")
     val initialSnap = remember { snap() }
@@ -138,6 +147,7 @@ fun EntryEditor(
                 )
             }
             SecretField(info.passLabel, password, { password = it }, showPass, { showPass = !showPass })
+            if (password.isNotEmpty()) StrengthBar(password)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (info.hasUser) TextButton(onClick = { copySensitive(ctx, "username", username) }) { Text("نسخ المستخدم") }
                 TextButton(onClick = { copySensitive(ctx, "password", password) }) { Text("نسخ الباسورد") }
@@ -164,6 +174,14 @@ fun EntryEditor(
                     minLines = 2, modifier = Modifier.fillMaxWidth(),
                 )
                 SecretField("مفتاح TOTP (base32 أو otpauth://)", totp, { totp = it }, showTotp, { showTotp = !showTotp })
+                OutlinedButton(onClick = {
+                    scanLauncher.launch(
+                        com.journeyapps.barcodescanner.ScanOptions()
+                            .setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+                            .setPrompt("وجّه الكاميرا على QR بتاع التحقق بخطوتين")
+                            .setBeepEnabled(false).setOrientationLocked(false),
+                    )
+                }) { Text("📷 مسح QR") }
                 if (totp.isNotBlank()) TotpLive(totp)
             }
         }
@@ -319,5 +337,28 @@ private fun HistoryRow(h: Entry, onRestore: (Entry) -> Unit) {
             TextButton(onClick = { copySensitive(ctx, "password", h.password) }) { Text("نسخ") }
             TextButton(onClick = { onRestore(h) }) { Text("استرجاع") }
         }
+    }
+}
+
+
+@Composable
+private fun StrengthBar(p: String) {
+    val lvl = Health.strength(p)
+    val (label, color) = when (lvl) {
+        0 -> "ضعيف جدًا" to androidx.compose.ui.graphics.Color(0xFFFF6B6B)
+        1 -> "ضعيف" to androidx.compose.ui.graphics.Color(0xFFFFA94D)
+        2 -> "كويس" to androidx.compose.ui.graphics.Color(0xFF8CE99A)
+        else -> "قوي" to androidx.compose.ui.graphics.Color(0xFF51CF66)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (i in 0..3) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.weight(1f).height(5.dp).background(
+                    if (i <= lvl) color else MaterialTheme.colorScheme.outlineVariant,
+                    androidx.compose.foundation.shape.RoundedCornerShape(3.dp),
+                ),
+            )
+        }
+        Text(label, style = MaterialTheme.typography.labelSmall, color = color)
     }
 }

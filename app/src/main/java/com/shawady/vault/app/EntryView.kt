@@ -39,7 +39,7 @@ import com.shawady.vault.core.Entry
 
 /** Read-only item screen: view + copy. Editing happens only after pressing "تعديل". */
 @Composable
-fun EntryView(e: Entry, folderName: String?, onEdit: () -> Unit, onBack: () -> Unit) {
+fun EntryView(e: Entry, folderName: String?, onEdit: () -> Unit, onClone: () -> Unit, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val info = EntryTypes.of(e.type)
     val voice = remember(e.id) { mutableStateMapOf<String, String>().apply { putAll(e.extra) } }
@@ -59,7 +59,10 @@ fun EntryView(e: Entry, folderName: String?, onEdit: () -> Unit, onBack: () -> U
                 )
             }
         }
-        Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("✏️ تعديل") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("✏️ تعديل") }
+            OutlinedButton(onClick = onClone, modifier = Modifier.weight(1f)) { Text("📄 نسخ العنصر") }
+        }
 
         if (info.creds) {
             if (info.hasUser && e.username.isNotBlank()) ViewRow("اسم المستخدم / الإيميل", e.username, false, "username")

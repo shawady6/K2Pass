@@ -2,6 +2,15 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — v1.4 (phase 2: usability)
+- **QR scan for TOTP** ("📷 مسح QR" in the login editor; zxing-android-embedded, fully offline; new `CAMERA` permission, camera not required). Invalid QR → message.
+- **Sorting** (name / last modified) in item lists and "بدون فولدر".
+- **Clone item** button on the view screen (copies fields; clears favorite, TOTP, voice, history).
+- **Password strength bar** under the password field in the editor.
+- Empty vault shows an import-from-file button; section rows redesigned (tinted icon tile + count + chevron).
+- Not done yet from phase 2: swipe actions, idle auto-lock, splitting `MainActivity.kt`, TalkBack audit (current null content descriptions are decorative icons with a text label next to them).
+- Status: CI-build verified only — NEEDS TESTING on device.
+
 ## 2026-11-04 — v1.3 (phase-1 safety work)
 - **Tests** (`vault-core/src/test`, run in CI before the APK build): RFC 6238 TOTP vectors (SHA-1/256/512), merge commutativity/idempotence/history cap/tombstones/tie-break, model JSON round trip + old-format load. Crypto round-trip tests are NOT possible on the JVM (Argon2 JNI) → need instrumented tests (still TODO).
 - Editor: warns before leaving with unsaved changes (back button and "إلغاء").

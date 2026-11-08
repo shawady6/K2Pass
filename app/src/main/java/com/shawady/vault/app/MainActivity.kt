@@ -111,6 +111,8 @@ class MainActivity : FragmentActivity() {
     private var folders by mutableStateOf<List<Entry>>(emptyList())
     /** Vault section/folder currently open ("" = root). Lives here so View/Edit → back returns to the same folder. */
     private var vaultFilter by mutableStateOf("")
+    /** 0 = name, 1 = last modified (newest first). */
+    private var vaultSort by mutableStateOf(0)
     private var message by mutableStateOf<String?>(null)
     private var pendingRemote by mutableStateOf<VaultCrypto.VaultFile?>(null)
     private var resumeTick by mutableStateOf(0)
@@ -443,6 +445,13 @@ class MainActivity : FragmentActivity() {
                         e = s.entry,
                         folderName = Folders.nameOf(s.entry.category, folders),
                         onEdit = { screen = Screen.Edit(s.entry) },
+                        onClone = {
+                            val c = s.entry.copy(
+                                id = "", title = s.entry.title + " (نسخة)", history = emptyList(), updatedAt = 0L,
+                                trashedAt = 0L, favorite = false, totpSecret = null, extra = s.entry.extra - VOICE_KEY,
+                            )
+                            screen = Screen.Edit(null, s.entry.type, c)
+                        },
                         onBack = { screen = Screen.Vault },
                     )
                     Screen.Health -> HealthScreen(
@@ -591,9 +600,9 @@ class MainActivity : FragmentActivity() {
         }
         val listMode = searching || vaultFilter != ""
         val shown = if (!listMode) emptyList() else pool.filter { (searching || inTrash || inSection(it)) && (!searching || matchQ(it)) }
-            .sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.thenBy { it.title.lowercase() })
+            .sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.then(sortCmp()))
         val noFolder = active.filter { Folders.nameOf(it.category, folders) == null }
-            .sortedWith(compareByDescending<Entry> { it.favorite }.thenBy { it.title.lowercase() })
+            .sortedWith(compareByDescending<Entry> { it.favorite }.then(sortCmp()))
         val typeRows = listOf(
             Triple("t:login", "دخول", active.count { it.type == "login" }),
             Triple("t:it", "IT (أجهزة وشبكات)", active.count { EntryTypes.isIt(it.type) && it.type != "ssh" }),
@@ -703,6 +712,7 @@ class MainActivity : FragmentActivity() {
                         )
                     }
                 }
+                if (listMode && shown.size > 1) item { Row { Spacer(Modifier.weight(1f)); SortButton() } }
                 if (listMode && !searching && vaultFilter.startsWith(Folders.PREFIX)) {
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -774,20 +784,33 @@ class MainActivity : FragmentActivity() {
                             }
                         }
                     }
-                    item { SectionHeader("بدون فولدر (${noFolder.size})") }
+                    item { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.weight(1f)) { SectionHeader("بدون فولدر (${noFolder.size})") }; if (noFolder.size > 1) SortButton() } }
                     if (active.isEmpty()) {
                         item {
                             Text(
-                                "الخزنة فاضية.\nاضغط + في النص وضيف أول عنصر",
+                                "الخزنة فاضية.\nاضغط + في النص وضيف أول عنصر، أو استورد باسوردات من Bitwarden أو أي ملف.",
                                 Modifier.fillMaxWidth().padding(top = 16.dp), textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                        item {
+                            OutlinedButton(onClick = { importFileLauncher.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("⬇️ استيراد من ملف (Bitwarden / CSV / خزنة)")
+                            }
                         }
                     }
                     items(noFolder, key = { it.id }) { e -> EntryCard(e, false) }
                 }
             }
         }
+    }
+
+    private fun sortCmp(): Comparator<Entry> =
+        if (vaultSort == 1) compareByDescending<Entry> { it.updatedAt } else compareBy<Entry> { it.title.lowercase() }
+
+    @Composable
+    private fun SortButton() {
+        TextButton(onClick = { vaultSort = 1 - vaultSort }) { Text(if (vaultSort == 0) "↕ الترتيب: الاسم" else "↕ الترتيب: آخر تعديل") }
     }
 
     @Composable
@@ -798,12 +821,17 @@ class MainActivity : FragmentActivity() {
     @Composable
     private fun SectionRow(emoji: String, label: String, n: Int, onClick: () -> Unit) {
         Row(
-            Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 14.dp),
+            Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(emoji, Modifier.width(30.dp))
-            Text(label, Modifier.weight(1f))
-            Text("$n", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(
+                Modifier.size(36.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) { Text(emoji) }
+            Spacer(Modifier.width(12.dp))
+            Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text("$n", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+            Text("  ‹", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 

@@ -41,6 +41,13 @@ object Health {
         return common.any { it in l }
     }
 
+    /** 0 = weak, 1 = fair, 2 = good, 3 = strong (heuristic, offline). */
+    fun strength(p: String): Int {
+        if (isWeak(p)) return if (p.length < 8) 0 else 1
+        val classes = listOf(p.any { it.isLowerCase() }, p.any { it.isUpperCase() }, p.any { it.isDigit() }, p.any { !it.isLetterOrDigit() }).count { it }
+        return if (p.length >= 16 && classes == 4) 3 else 2
+    }
+
     fun analyze(all: List<Entry>, now: Long): Report {
         val logins = all.filter { !it.deleted && it.trashedAt == 0L && it.password.isNotEmpty() }
         val weak = logins.filter { isWeak(it.password) }
