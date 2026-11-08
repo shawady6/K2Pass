@@ -12,8 +12,8 @@ android {
         applicationId = "com.shawady.vault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.4.1"
+        versionCode = 20
+        versionName = "1.5"
     }
 
     // A stable signing key is required for in-app updates (Android only installs an update signed by the same key).
@@ -52,7 +52,8 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.core:core-ktx:1.15.0")
-    implementation("com.journeyapps:zxing-android-embedded:4.3.0")   // QR scan for TOTP (offline, Apache-2.0)
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("com.google.zxing:core:3.5.3")   // QR scan for TOTP (offline, Apache-2.0)
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

@@ -1166,6 +1166,8 @@ class MainActivity : FragmentActivity() {
                     exportLauncher.launch("k2pass-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".vault")
                 }) { Text("تصدير نسخة مشفرة") }
             }
+
+            LanSyncSection(rawVault = { try { store.rawJson() } catch (_: Exception) { null } }, prefs = prefs)
         }
     }
 

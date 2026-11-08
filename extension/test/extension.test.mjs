@@ -63,3 +63,48 @@ test('URL matching: domain, subdomain, extra urls, trash, apps', async () => {
   assert.ok(!isLive(old));
   assert.ok(!matchesHost(old, 'old.example'));
 });
+
+// ---- LAN sync client ----
+const { parsePair, macHex, pullVault } = await import('../lib/sync.js');
+import http from 'node:http';
+import { createHmac } from 'node:crypto';
+
+const SECRET_B64URL = Buffer.from(Uint8Array.from({ length: 32 }, (_, i) => i)).toString('base64url');
+
+test('HMAC vector equals the Kotlin server vector (vault-core LanSyncServerTest)', async () => {
+  assert.equal(await macHex(SECRET_B64URL, 'v|abc123'), 'c014485e217b5e52e47739d96c38968362350723cffe5695d34aa737f274d2af');
+});
+
+test('parsePair accepts private-network links only', () => {
+  const ok = parsePair(`k2sync://192.168.1.20:8765/${SECRET_B64URL}`);
+  assert.deepEqual([ok.ip, ok.port, ok.secret], ['192.168.1.20', 8765, SECRET_B64URL]);
+  assert.ok(parsePair(`k2sync://10.0.0.5:9000/${SECRET_B64URL}`));
+  assert.ok(parsePair(`k2sync://172.20.1.1:9000/${SECRET_B64URL}`));
+  assert.equal(parsePair(`k2sync://8.8.8.8:8765/${SECRET_B64URL}`), null);       // public IP refused
+  assert.equal(parsePair(`k2sync://172.40.1.1:8765/${SECRET_B64URL}`), null);
+  assert.equal(parsePair(`k2sync://192.168.1.999:8765/${SECRET_B64URL}`), null);
+  assert.equal(parsePair('https://192.168.1.2:8765/x'), null);
+  assert.equal(parsePair('k2sync://192.168.1.2:8765/short'), null);
+});
+
+test('pullVault speaks the protocol (mock phone) and handles denial / offline', async () => {
+  const nonces = new Set();
+  const srv = http.createServer((req, res) => {
+    const u = new URL(req.url, 'http://x');
+    if (u.pathname === '/n') { const n = 'ab' + nonces.size + 'cd'; nonces.add(n); return res.end(n); }
+    if (u.pathname === '/v') {
+      const [n, mac] = (u.searchParams.get('a') || '').split('.');
+      const want = createHmac('sha256', Buffer.from(SECRET_B64URL, 'base64url')).update('v|' + n).digest('hex');
+      if (nonces.delete(n) && mac === want) return res.end(readFileSync(new URL('./fixture.vault', import.meta.url)));
+    }
+    res.statusCode = 403; res.end('forbidden');
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const port = srv.address().port;
+  try {
+    const got = await pullVault({ ip: '127.0.0.1', port, secret: SECRET_B64URL });
+    assert.equal(got, text);
+    await assert.rejects(pullVault({ ip: '127.0.0.1', port, secret: Buffer.alloc(32, 1).toString('base64url') }), /denied/);
+  } finally { srv.close(); }
+  await assert.rejects(pullVault({ ip: '127.0.0.1', port, secret: SECRET_B64URL }, 1000), /offline/);
+});

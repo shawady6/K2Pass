@@ -2,6 +2,7 @@ import { parseVaultFile, unlockVault, readEntries, b64e, b64d } from './lib/vaul
 import { totp } from './lib/totp.js';
 import { matchesHost, isLive, FOLDER_TYPE, folderKey, allUrls } from './lib/match.js';
 import { fillInPage } from './lib/fill.js';
+import { pullVault } from './lib/sync.js';
 
 const $ = (id) => document.getElementById(id);
 const LOCK_MIN = 5;           // auto-lock after 5 minutes without opening the popup
@@ -13,6 +14,7 @@ let openId = null, otpTimer = null;
 function show(view) {
   for (const v of ['v-import', 'v-unlock', 'v-list']) $(v).classList.toggle('hidden', v !== view);
   $('btn-lock').classList.toggle('hidden', view !== 'v-list');
+  $('btn-sync').classList.toggle('hidden', view === 'v-import');
   $('btn-menu').classList.toggle('hidden', view === 'v-import');
 }
 function toast(t) {
@@ -37,9 +39,10 @@ async function init() {
   vaultFile = parseVaultFile(vault);
   const s = await chrome.storage.session.get(['k', 'until']);
   if (s.k && s.until > Date.now()) {
-    try { await load(b64d(s.k)); return; } catch { /* fall through to unlock */ }
+    try { await load(b64d(s.k)); syncNow(true); return; } catch { /* fall through to unlock */ }
   }
   show('v-unlock'); $('pw').focus();
+  syncNow(true);
 }
 
 async function load(key) {
@@ -146,6 +149,30 @@ async function fill(e) {
   } catch { toast('الصفحة دي مش مسموح الملء فيها'); }
 }
 
+// Pull the latest vault from the paired phone (silent = no error toasts; used automatically when the popup opens).
+let syncing = false;
+async function syncNow(silent) {
+  const { pair } = await chrome.storage.local.get('pair');
+  if (!pair) { if (!silent) { toast('اربط الموبايل الأول'); chrome.tabs.create({ url: chrome.runtime.getURL('sync.html') }); } return; }
+  if (syncing) return; syncing = true;
+  const btn = $('btn-sync'); btn.textContent = '⏳';
+  try {
+    const text = await pullVault(pair, silent ? 1500 : 5000);
+    const { vault } = await chrome.storage.local.get('vault');
+    if (text === vault) { if (!silent) toast('الخزنة محدّثة بالفعل'); return; }
+    const f = parseVaultFile(text);
+    await chrome.storage.local.set({ vault: text });
+    vaultFile = f;
+    const s = await chrome.storage.session.get(['k', 'until']);
+    if (s.k && s.until > Date.now()) {
+      try { await load(b64d(s.k)); toast('اتحدّثت الخزنة من الموبايل ✔'); return; } catch { await chrome.storage.session.remove(['k', 'until']); }
+    }
+    show('v-unlock'); toast('في نسخة جديدة. اكتب الماستر باسورد.');
+  } catch (e) {
+    if (!silent) toast(e.message === 'denied' ? 'الموبايل رفض الكود. أعد الربط.' : 'الموبايل مش متاح. شغّل المزامنة في التطبيق (نفس الواي فاي).');
+  } finally { syncing = false; btn.textContent = '🔄'; }
+}
+
 async function doUnlock() {
   $('unlock-err').textContent = '';
   const pw = $('pw').value; if (!pw) return;
@@ -168,6 +195,8 @@ async function lock() {
 $('btn-unlock').onclick = doUnlock;
 $('pw').onkeydown = (e) => { if (e.key === 'Enter') doUnlock(); };
 $('btn-lock').onclick = lock;
+$('btn-sync').onclick = () => syncNow(false);
+$('m-pair').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('sync.html') });
 $('q').oninput = render; $('folder').onchange = render;
 $('btn-menu').onclick = () => $('menu').classList.toggle('hidden');
 $('m-replace').onclick = () => { $('menu').classList.add('hidden'); chrome.runtime.sendMessage({ type: 'lock-now' }); show('v-import'); };
