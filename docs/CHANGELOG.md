@@ -2,7 +2,7 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
-## 2026-11-08 — v1.5 + extension v0.3: pair by scanning the computer's QR with the phone camera
+## 2026-11-08 — v1.5.1 (was mistakenly built as 1.5 twice) + extension v0.3: pair by scanning the computer's QR with the phone camera
 - Extension (`sync.html`) shows a QR (`k2pair://<secret>`) on the computer; the phone scans it (Tools → "مزامنة مع إضافة المتصفح" → 📷). Because a browser cannot accept connections, the extension then discovers the phone on the LAN (port 8765, common private subnets, `discover()`), proving identity with the secret; manual `ip:port` fallback. The popup auto-pulls on open, has a 🔄 button, and re-discovers if the phone's IP changed.
 - App: `LanSyncServer` (vault-core, plain `ServerSocket`) serves the vault exactly as stored (still encrypted). Auth: single-use nonce (30 s) + HMAC-SHA256(secret, "v|"+nonce), constant-time compare over all paired secrets (max 5 computers), 403 delay. Runs only while the app card is active (screen kept on); "إلغاء ربط كل الأجهزة" clears all secrets.
 - Verified: Kotlin server tests (valid, replay, wrong secret, any-of-several secrets, missing auth, 404) + JS client/discovery tests + HMAC vector shared between Kotlin and JS + end-to-end in real Chromium (QR drawn on the page decodes to the pairing text → phone starts answering → extension finds it → vault pulled → unlock → list). NOT verified: the phone's camera scan, real Wi-Fi, Android server on a real device.
