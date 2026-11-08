@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-08 — v1.5.3
+- Fix: the QR scanner (extension pairing + TOTP) opened in landscape; the zxing activity is now overridden in the manifest to follow the phone's orientation.
+
 ## 2026-11-08 — Extension v0.4.1
 - New logo: gradient tile with a shield + keyhole (16/48/128 px + logo.svg).
 

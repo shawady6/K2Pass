@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- INTERNET is used ONLY by the manual "check for update" button (Updater.kt): no background or automatic traffic. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -55,5 +56,11 @@
                 <action android:name="android.service.autofill.AutofillService" />
             </intent-filter>
         </service>
+
+        <!-- zxing ships its scanner locked to landscape; follow the phone's orientation instead (portrait by default). -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullUser"
+            tools:replace="android:screenOrientation" />
     </application>
 </manifest>
