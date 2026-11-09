@@ -2,6 +2,12 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-09 — v1.6.0 + Windows app 0.1 (phase A)
+- New **K2Pass for Windows** (Tauri 2, `windows/`): opens the encrypted vault (same Argon2id/AES-GCM code as the extension), search, folders, copy user/password, live TOTP, auto-lock, import file. It **listens** on port 8766 (Rust, `windows/k2-lan`), shows a pairing QR `k2pair://<secret>@<ip>:<port>`; the phone scans it and **pushes** its encrypted vault (HMAC-signed, single-use nonce). Fixes the "extension can't be found" problem for good: the PC is now the listener.
+- Phone 1.6.0: the existing scan button also understands the PC QR; "📤 ابعت الخزنة لتطبيق الكمبيوتر" re-sends later. `LanPushClient` + tests.
+- CI: new workflow builds `K2Pass-Windows.exe` and publishes it to the `windows` pre-release (the Rust receiver tests run there too).
+- Not yet: write/edit on PC, extension ↔ app link, extension auto-update, signed installer. Untested on a real Windows machine/phone (first run: allow the Windows Firewall prompt for private networks).
+
 ## 2026-11-08 — Extension v0.6.0 (smarter phone discovery)
 - Pairing page first asks the browser for this computer's real LAN subnet (WebRTC local candidates; nothing leaves the PC) and scans it first, then the common home subnets, then — as an alternating slow pass — every 192.168.x.0/24 (covers odd routers such as 192.168.31.x). The status line says what it is doing.
 - If the browser hides local IPs (mDNS), it silently falls back to the lists above. Manual IP entry still works.

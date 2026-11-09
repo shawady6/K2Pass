@@ -16,6 +16,7 @@
 | What | Link | Notes |
 |---|---|---|
 | 📱 **Android app** | [**K2Pass-debug.apk**](https://github.com/shawady6/K2Pass/releases/download/latest/K2Pass-debug.apk) | Android 10+. Allow "install unknown apps" once. Later updates: **Settings → Updates → تحقق وحدّث** (one tap, inside the app). |
+| 🖥️ **Windows app** *(new, early)* | [**K2Pass-Windows.exe**](https://github.com/shawady6/K2Pass/releases/download/windows/K2Pass-Windows.exe) | Windows 10/11 (needs WebView2, already on most PCs). Pair with the phone by QR; the phone pushes the vault over Wi-Fi. |
 | 🧩 **Browser extension** | [**K2Pass-extension.zip**](https://github.com/shawady6/K2Pass/releases/download/latest/K2Pass-extension.zip) | Chrome / Edge / Brave (Manifest V3). Read-only companion. |
 
 Both files are always the **latest build** (pre-release tag [`latest`](https://github.com/shawady6/K2Pass/releases/tag/latest)).
@@ -56,7 +57,7 @@ Both files are always the **latest build** (pre-release tag [`latest`](https://g
 |---|---|
 | Android 10+ (minSdk 29, target 35) | ✅ Available |
 | Chrome / Edge / Brave extension | ✅ Available (read-only; suggests accounts inside login pages, one-click fill) |
-| Windows app | Planned |
+| Windows app | 🚧 Phase A (view, search, copy, TOTP, receive from phone) |
 
 ## First use
 1. Create the vault with a master password (10+ characters). **There is no recovery.**
