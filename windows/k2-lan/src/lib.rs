@@ -1,6 +1,7 @@
 //! K2Pass LAN receiver (Windows side). The phone PUSHES its encrypted vault file here.
 //!   GET  /n                     -> 32-hex single-use nonce (valid 30 s)
 //!   POST /push?a=<nonce>.<hex>  -> body = vault file; hex = HMAC-SHA256(secret, "p|" + nonce)
+//!   GET  /v?a=<nonce>.<hex>     -> this PC's current vault file (the merged one); hex = HMAC-SHA256(secret, "v|" + nonce)
 //! Auth is checked against every paired secret in constant time; the secret itself never travels.
 pub mod client;
 pub mod local;
@@ -35,8 +36,8 @@ pub fn new_secret() -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b)
 }
 
-fn authorised(secrets: &[Vec<u8>], nonce: &str, given: &str) -> bool {
-    let msg = format!("p|{nonce}");
+fn authorised(secrets: &[Vec<u8>], tag: &str, nonce: &str, given: &str) -> bool {
+    let msg = format!("{tag}|{nonce}");
     let mut ok = false;
     for s in secrets {
         ok |= bool::from(mac_hex(s, &msg).as_bytes().ct_eq(given.as_bytes()));
@@ -51,7 +52,13 @@ pub struct Receiver {
 
 impl Receiver {
     /// Starts listening on 0.0.0.0:`port` (0 = any free port). `on_vault(text)` runs for every authorised push.
-    pub fn start(port: u16, secrets: Vec<Vec<u8>>, on_vault: impl Fn(String) + Send + Sync + 'static) -> Result<Receiver, String> {
+    pub fn start(
+        port: u16,
+        secrets: Vec<Vec<u8>>,
+        provider: Arc<Mutex<Option<String>>>,
+        on_vault: impl Fn(String) + Send + Sync + 'static,
+        on_served: impl Fn() + Send + Sync + 'static,
+    ) -> Result<Receiver, String> {
         let server = tiny_http::Server::http(("0.0.0.0", port)).map_err(|e| e.to_string())?;
         let port = server.server_addr().to_ip().map(|a| a.port()).unwrap_or(port);
         let server = Arc::new(server);
@@ -75,11 +82,28 @@ impl Receiver {
                         drop(m);
                         respond(req, 200, &n);
                     }
+                    (tiny_http::Method::Get, "/v") => {
+                        let a = query.split('&').find_map(|kv| kv.strip_prefix("a=")).unwrap_or("");
+                        let (nonce, given) = a.split_once('.').unwrap_or(("", ""));
+                        let fresh = nonces.lock().unwrap().remove(nonce).map(|t| t.elapsed() < NONCE_TTL).unwrap_or(false);
+                        if !fresh || !authorised(&secrets, "v", nonce, given) {
+                            std::thread::sleep(Duration::from_millis(400));
+                            respond(req, 403, "denied");
+                            continue;
+                        }
+                        match provider.lock().unwrap().clone() {
+                            Some(v) => {
+                                respond(req, 200, &v);
+                                on_served();
+                            }
+                            None => respond(req, 404, "no vault"),
+                        }
+                    }
                     (tiny_http::Method::Post, "/push") => {
                         let a = query.split('&').find_map(|kv| kv.strip_prefix("a=")).unwrap_or("");
                         let (nonce, given) = a.split_once('.').unwrap_or(("", ""));
                         let fresh = nonces.lock().unwrap().remove(nonce).map(|t| t.elapsed() < NONCE_TTL).unwrap_or(false);
-                        if !fresh || !authorised(&secrets, nonce, given) {
+                        if !fresh || !authorised(&secrets, "p", nonce, given) {
                             std::thread::sleep(Duration::from_millis(400));
                             respond(req, 403, "denied");
                             continue;
@@ -145,7 +169,10 @@ mod tests {
         let secret: Vec<u8> = (0..32).collect();
         let got = Arc::new(Mutex::new(Vec::<String>::new()));
         let g2 = got.clone();
-        let r = Receiver::start(0, vec![secret.clone()], move |v| g2.lock().unwrap().push(v)).unwrap();
+        let slot = Arc::new(Mutex::new(Some(r#"{\"v\":1,\"wk\":\"m\",\"data\":\"merged\"}"#.to_string())));
+        let served = Arc::new(Mutex::new(0));
+        let s2 = served.clone();
+        let r = Receiver::start(0, vec![secret.clone()], slot, move |v| g2.lock().unwrap().push(v), move || *s2.lock().unwrap() += 1).unwrap();
         let vault = r#"{"v":1,"wk":"x","data":"y"}"#;
 
         let (c, nonce) = http(r.port, "GET /n HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
@@ -163,6 +190,18 @@ mod tests {
         let ok3 = format!("{n3}.{}", mac_hex(&secret, &format!("p|{n3}")));
         assert_eq!(post(r.port, &ok3, "garbage").0, 400, "must look like a vault file");
         assert_eq!(got.lock().unwrap().len(), 1);
+
+        // the phone pulls the merged vault back
+        let (_, n4) = http(r.port, "GET /n HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
+        let a4 = format!("{n4}.{}", mac_hex(&secret, &format!("v|{n4}")));
+        let (c, body) = http(r.port, &format!("GET /v?a={a4} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n"));
+        assert_eq!(c, 200);
+        assert!(body.contains("merged"));
+        assert_eq!(*served.lock().unwrap(), 1);
+        // a push-signature is not valid for pulling
+        let (_, n5) = http(r.port, "GET /n HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
+        let wrongtag = format!("{n5}.{}", mac_hex(&secret, &format!("p|{n5}")));
+        assert_eq!(http(r.port, &format!("GET /v?a={wrongtag} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")).0, 403);
         r.stop();
     }
 }

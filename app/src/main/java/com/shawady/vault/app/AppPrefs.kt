@@ -20,6 +20,14 @@ class AppPrefs(ctx: Context) {
         get() = p.getString("pc_target", "") ?: ""
         set(v) { p.edit().putString("pc_target", v).apply() }
 
+    /** Last automatic PC sync: epoch ms (0 = never) and a short result text. */
+    var pcSyncMs: Long
+        get() = p.getLong("pc_sync_ms", 0L)
+        set(v) { p.edit().putLong("pc_sync_ms", v).apply() }
+    var pcSyncNote: String
+        get() = p.getString("pc_sync_note", "") ?: ""
+        set(v) { p.edit().putString("pc_sync_note", v).apply() }
+
     fun clearLanSecrets() { p.edit().remove("lan_secrets").apply() }
 
     var autoLockMs: Long

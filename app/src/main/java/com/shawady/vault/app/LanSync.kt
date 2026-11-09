@@ -22,6 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.shawady.vault.core.LanPushClient
+import com.shawady.vault.core.VaultCrypto
+import com.shawady.vault.core.VaultData
+import com.shawady.vault.core.VaultMerge
 import com.shawady.vault.core.LanSyncServer
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -127,6 +130,10 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
                     .setPrompt("وجّه الكاميرا على الكود اللي في الإضافة").setBeepEnabled(false).setOrientationLocked(false),
             )
         }, modifier = Modifier.fillMaxWidth()) { Text("📷 مسح كود (إضافة المتصفح / تطبيق الكمبيوتر)") }
+        if (pcTarget.isNotEmpty() && prefs.pcSyncNote.isNotEmpty()) Text(
+            "المزامنة التلقائية: " + prefs.pcSyncNote + if (prefs.pcSyncMs > 0) " (" + SimpleDateFormat("d/M HH:mm", java.util.Locale.getDefault()).format(Date(prefs.pcSyncMs)) + ")" else "",
+            style = MaterialTheme.typography.bodySmall,
+        )
         if (pcTarget.isNotEmpty()) OutlinedButton(onClick = { pushToPc() }, modifier = Modifier.fillMaxWidth()) { Text("📤 ابعت الخزنة لتطبيق الكمبيوتر") }
         if (prefs.lanSecrets.isNotEmpty() && server == null) {
             OutlinedButton(onClick = { if (start()) status = "المزامنة شغّالة. افتح الإضافة على الكمبيوتر." }, modifier = Modifier.fillMaxWidth()) {
@@ -142,5 +149,69 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
         if (prefs.lanSecrets.isNotEmpty() || pcTarget.isNotEmpty()) {
             OutlinedButton(onClick = { stop(); prefs.clearLanSecrets(); prefs.pcTarget = ""; pcTarget = ""; status = "اتلغى الربط مع كل الأجهزة." }) { Text("إلغاء ربط كل الأجهزة") }
         }
+    }
+}
+
+
+/**
+ * Keeps the paired Windows app in step: a few seconds after every save the vault is pushed to the PC and the PC's merged vault is
+ * pulled back and merged in (same VaultMerge on both sides). Silent when the PC is off or unreachable; the last result is kept in prefs.
+ */
+object PcAutoSync {
+    private val ui = android.os.Handler(android.os.Looper.getMainLooper())
+    private var job: Runnable? = null
+
+    /** Parses "<secret>@ip:port,ip:port" into (secret bytes, addresses). */
+    fun parse(target: String): Pair<ByteArray, List<Pair<String, Int>>>? {
+        val m = Regex("^([A-Za-z0-9_-]{43})@(.+)$").find(target) ?: return null
+        val secret = Base64.decode(m.groupValues[1], Base64.URL_SAFE)
+        val addrs = m.groupValues[2].split(',').mapNotNull { a ->
+            a.substringBefore(':').takeIf { it.isNotEmpty() }?.let { it to (a.substringAfter(':').toIntOrNull() ?: 8766) }
+        }
+        return secret to addrs
+    }
+
+    /** Call from the UI thread after a save. [onMerged] runs on the UI thread when the PC contributed something new. */
+    fun schedule(prefs: AppPrefs, store: VaultStore, onMerged: () -> Unit) {
+        if (prefs.pcTarget.isEmpty()) return
+        job?.let { ui.removeCallbacks(it) }
+        val r = Runnable { Thread { run(prefs, store, onMerged) }.start() }
+        job = r
+        ui.postDelayed(r, 4000)
+    }
+
+    fun run(prefs: AppPrefs, store: VaultStore, onMerged: () -> Unit): String {
+        val (secret, addrs) = parse(prefs.pcTarget) ?: return "no target"
+        val vault = store.rawJson()
+        var res = LanPushClient.Result.UNREACHABLE
+        var host: Pair<String, Int>? = null
+        for (a in addrs) { res = LanPushClient.push(a.first, a.second, secret, vault, 2500); if (res != LanPushClient.Result.UNREACHABLE) { host = a; break } }
+        val note = when (res) {
+            LanPushClient.Result.OK -> {
+                val back = LanPushClient.pull(host!!.first, host.second, secret, 4000)
+                if (back != null && mergeBack(store, back)) ui.post(onMerged)
+                "تمت المزامنة مع الكمبيوتر"
+            }
+            LanPushClient.Result.DENIED -> "الكمبيوتر رفض الكود (اعمل ربط جديد)"
+            LanPushClient.Result.REJECTED -> "الكمبيوتر ما قبلش الملف"
+            LanPushClient.Result.UNREACHABLE -> "الكمبيوتر مش متاح (مقفول أو الجدار الناري)"
+        }
+        prefs.pcSyncNote = note
+        if (res == LanPushClient.Result.OK) prefs.pcSyncMs = System.currentTimeMillis()
+        return note
+    }
+
+    /** Merge the PC's vault into the open vault; true when something changed. Needs the vault unlocked. */
+    private fun mergeBack(store: VaultStore, text: String): Boolean {
+        val local = Session.data ?: return false
+        val k = Session.keyCopy() ?: return false
+        val remote = try {
+            VaultData.fromBytes(VaultCrypto.readPayload(VaultCrypto.VaultFile.fromJson(text), k))
+        } catch (e: Exception) { return false } finally { k.fill(0) }
+        val merged = VaultMerge.merge(local, remote)
+        if (merged == VaultMerge.merge(local, local)) return false
+        Session.quiet = true
+        try { Session.persist(store, merged) } finally { Session.quiet = false }
+        return true
     }
 }

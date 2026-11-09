@@ -51,4 +51,22 @@ class VaultMergeTest {
         val a = v(e("1", "cur", 100).copy(history = hist))
         assertEquals(20, VaultMerge.merge(a, a).entries.single().history.size)
     }
+
+    /** The JS port (extension/lib/merge.js, used by the Windows app) must merge exactly like this class. */
+    @Test fun matchesTheSharedJsVectors() {
+        val f = java.io.File("../extension/test/merge_vectors.json").takeIf { it.exists() } ?: java.io.File("extension/test/merge_vectors.json")
+        val root = org.json.JSONObject(f.readText())
+        fun data(a: org.json.JSONArray) = VaultData((0 until a.length()).map { Entry.fromJson(a.getJSONObject(it)) })
+        for (name in root.keys()) {
+            val c = root.getJSONObject(name)
+            val merged = VaultMerge.merge(data(c.getJSONArray("a")), data(c.getJSONArray("b")))
+            val expected = c.getJSONArray("merged")
+            assertEquals(name, expected.length(), merged.entries.size)
+            for (i in 0 until expected.length()) {
+                val got = merged.entries[i].toJson()
+                val want = expected.getJSONObject(i)
+                assertTrue("$name #$i\n got  $got\n want $want", got.similar(want))
+            }
+        }
+    }
 }

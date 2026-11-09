@@ -48,3 +48,17 @@ export async function readEntries(file, vaultKey) {
   const pt = await aesGcmDecrypt(vaultKey, b64d(file.data), aad(file));
   return JSON.parse(dec.decode(pt)).entries;
 }
+
+async function aesGcmEncrypt(keyBytes, plain, aadBytes) {
+  const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aadBytes, tagLength: 128 }, key, plain));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+  return out;
+}
+
+/** New vault file = [file]'s header and wrapped key + [entries] re-encrypted with a fresh IV (mirrors VaultCrypto.writePayload). */
+export async function writeEntries(file, vaultKey, entries) {
+  const data = await aesGcmEncrypt(vaultKey, enc.encode(JSON.stringify({ entries })), aad(file));
+  return { ...file, data: b64e(data) };
+}

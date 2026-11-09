@@ -34,10 +34,17 @@ jobs:
           npm install --no-save @tauri-apps/cli@2
           npx tauri build --no-bundle --config src-tauri/tauri.conf.json
 
+      - name: Build MSI installer
+        working-directory: windows
+        continue-on-error: true
+        run: npx tauri build --bundles msi --config src-tauri/tauri.conf.json
+
       - uses: actions/upload-artifact@v4
         with:
           name: K2Pass-windows
-          path: windows/target/release/k2pass-windows.exe
+          path: |
+            windows/target/release/k2pass-windows.exe
+            windows/target/release/bundle/msi/*.msi
 
       - name: Publish to the "windows" pre-release
         if: github.ref == 'refs/heads/main'
@@ -47,5 +54,6 @@ jobs:
         run: |
           cp windows/target/release/k2pass-windows.exe K2Pass-Windows.exe
           printf 'Windows app build of %s (phase A: view, search, copy, TOTP, receive vault from phone).\nsha256: %s\n' "${GITHUB_SHA::7}" "$(sha256sum K2Pass-Windows.exe | cut -d' ' -f1)" > wnotes.txt
+          cp windows/target/release/bundle/msi/*.msi K2Pass-Windows.msi || true
           gh release delete windows --cleanup-tag -y || true
-          gh release create windows K2Pass-Windows.exe --title "K2Pass for Windows (latest)" --notes-file wnotes.txt --target "$GITHUB_SHA" --prerelease
+          gh release create windows K2Pass-Windows.exe $(ls K2Pass-Windows.msi 2>/dev/null) --title "K2Pass for Windows (latest)" --notes-file wnotes.txt --target "$GITHUB_SHA" --prerelease

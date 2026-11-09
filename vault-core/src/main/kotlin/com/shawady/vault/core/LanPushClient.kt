@@ -30,6 +30,18 @@ object LanPushClient {
         }
     }
 
+    /** The PC's current (merged) vault file: GET /n, then GET /v?a=<nonce>.<hex HMAC-SHA256(secret,"v|"+nonce)>. Null on any failure. */
+    fun pull(host: String, port: Int, secret: ByteArray, timeoutMs: Int = 5000): String? = try {
+        val nonce = open("http://$host:$port/n", "GET", timeoutMs).let { c ->
+            if (c.responseCode != 200) return null
+            c.inputStream.readBytes().toString(Charsets.UTF_8).trim()
+        }
+        val c = open("http://$host:$port/v?a=$nonce." + LanSyncServer.macHex(secret, "v|$nonce"), "GET", timeoutMs)
+        if (c.responseCode == 200) c.inputStream.readBytes().toString(Charsets.UTF_8) else null
+    } catch (e: Exception) {
+        null
+    }
+
     private fun open(url: String, method: String, timeoutMs: Int) =
         (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method; connectTimeout = timeoutMs; readTimeout = timeoutMs

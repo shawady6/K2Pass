@@ -1,4 +1,5 @@
-import { parseVaultFile, unlockVault, readEntries } from './lib/vault.js';
+import { parseVaultFile, unlockVault, readEntries, writeEntries } from './lib/vault.js';
+import { mergeEntries, editEntry, toJson, norm } from './lib/merge.js';
 import { totp } from './lib/totp.js';
 import { FOLDER_TYPE, folderKey, isLive, allUrls } from './lib/match.js';
 import { icon, hydrate } from './lib/icons.js';
@@ -13,9 +14,9 @@ const store = {
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
 };
 
-let lastView = 'v-import', vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
+let lastView = 'v-import', raw = [], editing = null, vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
 
-const VIEWS = ['v-import', 'v-unlock', 'v-list', 'v-pair', 'v-ext'];
+const VIEWS = ['v-import', 'v-unlock', 'v-list', 'v-pair', 'v-ext', 'v-edit'];
 function show(v) {
   for (const x of VIEWS) $(x).classList.toggle('hidden', x !== v);
   $('btn-lock').classList.toggle('hidden', v !== 'v-list');
@@ -37,19 +38,47 @@ function start() {
   show('v-unlock'); $('pw').focus();
 }
 
-async function load(k) {
-  const raw = await readEntries(vaultFile, k);
-  key = k;
+function derive() {
   folders = raw.filter((e) => e.type === FOLDER_TYPE && !e.del);
   entries = raw.filter((e) => e.type !== FOLDER_TYPE && isLive(e));
-  const sel = $('folder'); sel.innerHTML = '';
+  const sel = $('folder'), cur = sel.value; sel.innerHTML = '';
   const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
   add('', 'كل العناصر'); add('fav', 'المفضلة');
   folders.sort((a, b) => a.title.localeCompare(b.title)).forEach((f) => add(folderKey(f), f.title));
+  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
+}
+
+async function load(k) {
+  raw = await readEntries(vaultFile, k);
+  key = k;
+  derive();
+  const pend = store.get('pending', null);
+  if (pend) { store.set('pending', null); await mergeIn(pend, true); }
   show('v-list'); render(); bump();
 }
 
-function lock() { key = null; entries = []; folders = []; openId = null; clearInterval(otpTimer); $('list').innerHTML = ''; $('detail').innerHTML = '<p class="empty">اختار حساب من القايمة</p>'; $('q').value = ''; if (vaultFile) { show('v-unlock'); $('pw').focus(); } }
+// ---- saving & merging (same rules as the phone: newest edit wins, losers go to history, deletes are final) ----
+async function saveFile(f, entriesRaw, dirty) {
+  vaultFile = f; raw = entriesRaw;
+  const text = JSON.stringify(f);
+  store.set('vault', text); store.set('dirty', dirty); publish(text);
+  derive(); render();
+}
+async function commit(newRaw) { await saveFile(await writeEntries(vaultFile, key, newRaw), newRaw, true); }
+
+/** Merge a vault file received from the phone into the open vault. Returns false when it belongs to a different vault. */
+async function mergeIn(text, quiet) {
+  const remote = parseVaultFile(text);
+  let rem;
+  try { rem = await readEntries(remote, key); } catch { return false; }
+  const merged = mergeEntries(raw, rem);
+  const same = JSON.stringify(merged) === JSON.stringify(mergeEntries(rem, rem));     // nothing the phone lacks
+  await saveFile(await writeEntries(remote, key, merged), merged, !same);
+  if (!quiet) toast(`اتدمجت الخزنة (${entries.length} حساب)`);
+  return true;
+}
+
+function lock() { key = null; raw = []; entries = []; folders = []; openId = null; clearInterval(otpTimer); $('list').innerHTML = ''; $('detail').innerHTML = '<p class="empty">اختار حساب من القايمة</p>'; $('q').value = ''; if (vaultFile) { show('v-unlock'); $('pw').focus(); } }
 
 const subtitle = (e) => e.user || (e.extra && (e.extra.host || e.extra.ssid)) || '';
 const folderName = (e) => (folders.find((x) => folderKey(x) === e.cat) || {}).title || '';
@@ -90,7 +119,8 @@ function field(k, v, secret) {
 }
 function detail(e) {
   clearInterval(otpTimer);
-  const d = $('detail'); d.innerHTML = ''; d.append(mk('h2', '', e.title));
+  const d = $('detail'); d.innerHTML = '';
+  const hd = mk('div', 'dh'); hd.append(mk('h2', '', e.title), btn('edit', 'تعديل', () => openEdit(raw.find((x) => x.id === e.id) || e))); d.append(hd);
   const fn = folderName(e); if (fn) d.append(field('الفولدر', fn, false));
   if (e.user) d.append(field('المستخدم', e.user, false));
   if (e.pass) d.append(field('الباسورد', e.pass, true));
@@ -155,13 +185,19 @@ async function manualPull() {
 async function onPushed(text) {
   try {
     const f = parseVaultFile(text);
-    store.set('vault', text); vaultFile = f; publish(text);
+    if (key) {
+      if (await mergeIn(text, false)) { msg('وصلت الخزنة من الموبايل واتدمجت ✔', 'ok'); return; }
+      key = null; raw = [];                                  // a different vault: replace it
+    } else if (store.get('dirty', false) && vaultFile) {
+      store.set('pending', text);                            // we have local edits: merge after the next unlock
+      msg('وصلت الخزنة. هتتدمج مع تعديلاتك أول ما تفتح الخزنة ✔', 'ok'); toast('اكتب الماستر باسورد عشان تتدمج'); show('v-unlock'); $('pw').focus(); return;
+    }
+    store.set('vault', text); store.set('dirty', false); store.set('pending', null); vaultFile = f; publish(text);
     msg('وصلت الخزنة من الموبايل ✔', 'ok'); toast('اتحدّثت الخزنة من الموبايل');
-    if (key) { try { await load(key); return; } catch { key = null; } }
     show('v-unlock'); $('pw').focus();
   } catch (e) { msg('الملف اللي وصل مش خزنة صالحة.', 'bad'); }
 }
-if (T) T.event.listen('vault-pushed', (ev) => onPushed(ev.payload));
+if (T) { T.event.listen('vault-pushed', (ev) => onPushed(ev.payload)); T.event.listen('vault-served', () => store.set('dirty', false)); }
 window.__k2push = onPushed;                                // test hook (plain-browser tests)
 
 $('btn-unlock').onclick = doUnlock; $('pw').onkeydown = (e) => { if (e.key === 'Enter') doUnlock(); };
@@ -181,7 +217,43 @@ async function openExt() {
   catch { $('ext-status').textContent = 'متاح في تطبيق الويندوز بس.'; }
 }
 $('btn-ext').onclick = openExt;
+$('fw-open').onclick = async () => { try { await invoke('allow_firewall'); toast('تم السماح — الموبايل يقدر يبعت تلقائي'); } catch (e) { toast('اتلغى'); } };
 $('ext-open').onclick = () => invoke('ext_open_folder');
 $('ext-copy').onclick = () => copy($('ext-path').textContent, 'المسار');
 $('ext-back').onclick = () => show(lastView);
+// ---- add / edit / trash ----
+const rnd = (n = 20) => { const set = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*-_'; const b = crypto.getRandomValues(new Uint32Array(n)); return [...b].map((x) => set[x % set.length]).join(''); };
+function openEdit(e) {
+  editing = e || null; show('v-edit');
+  $('ed-title-h').textContent = e ? 'تعديل الحساب' : 'حساب جديد';
+  const o = e ? norm(e) : { title: '', user: '', pass: '', url: '', notes: '', totp: null, fav: false, cat: 'other' };
+  $('ed-title').value = o.title; $('ed-user').value = o.user; $('ed-pass').value = o.pass; $('ed-pass').type = 'password';
+  $('ed-url').value = o.url; $('ed-notes').value = o.notes; $('ed-totp').value = o.totp || ''; $('ed-fav').checked = o.fav;
+  const f = $('ed-folder'); f.innerHTML = '';
+  const add = (v, t) => { const x = document.createElement('option'); x.value = v; x.textContent = t; f.appendChild(x); };
+  add('other', 'بدون فولدر'); folders.forEach((x) => add(folderKey(x), x.title));
+  if (![...f.options].some((x) => x.value === o.cat)) add(o.cat, o.cat);
+  f.value = o.cat;
+  $('ed-del').classList.toggle('hidden', !e); $('ed-err').textContent = ''; $('ed-title').focus();
+}
+async function saveEdit() {
+  const title = $('ed-title').value.trim();
+  if (!title) { $('ed-err').textContent = 'اكتب اسم للحساب'; return; }
+  const ch = { title, user: $('ed-user').value, pass: $('ed-pass').value, url: $('ed-url').value.trim(), notes: $('ed-notes').value, totp: $('ed-totp').value.trim() || null, fav: $('ed-fav').checked, cat: $('ed-folder').value };
+  const now = Date.now();
+  const out = editing ? editEntry(editing, ch, now) : toJson({ id: crypto.randomUUID(), ...ch, ts: now, del: false, type: 'login', trash: 0, extra: {}, hist: [] });
+  await commit([...raw.filter((x) => x.id !== out.id), out]);
+  openId = out.id; show('v-list'); render(); detail(entries.find((x) => x.id === out.id) || out); toast('اتحفظ ✔');
+}
+async function trashEdit() {
+  if (!editing || !confirm('تنقل الحساب للسلة؟ (ممكن ترجّعه من الموبايل)')) return;
+  const now = Date.now();
+  await commit(raw.map((x) => (x.id === editing.id ? toJson({ ...norm(x), trash: now, ts: now }) : x)));
+  openId = null; $('detail').innerHTML = '<p class="empty">اختار حساب من القايمة</p>'; show('v-list'); render(); toast('اتنقل للسلة');
+}
+$('btn-new').onclick = () => openEdit(null);
+$('ed-save').onclick = saveEdit; $('ed-del').onclick = trashEdit;
+$('ed-cancel').onclick = () => show('v-list');
+$('ed-gen').onclick = () => { $('ed-pass').value = rnd(); $('ed-pass').type = 'text'; };
+$('ed-eye').onclick = () => { const p = $('ed-pass'); p.type = p.type === 'password' ? 'text' : 'password'; };
 start();

@@ -193,10 +193,12 @@ class MainActivity : FragmentActivity() {
         )
         screen = computeScreen()
         refreshEntries()
+        Session.onSaved = { PcAutoSync.schedule(prefs, store) { refreshEntries() } }
         setContent { AppTheme { Root() } }
     }
 
     override fun onDestroy() {
+        Session.onSaved = null
         unregisterReceiver(screenOff)
         super.onDestroy()
     }

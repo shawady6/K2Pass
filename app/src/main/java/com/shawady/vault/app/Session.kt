@@ -36,6 +36,10 @@ object Session {
         }
     }
 
+    /** Called after every successful save (not for saves made by the sync itself). */
+    @Volatile var onSaved: (() -> Unit)? = null
+    @Volatile var quiet = false
+
     fun persist(store: VaultStore, newData: VaultData) {
         val f = file ?: return
         val k = key ?: return
@@ -43,6 +47,7 @@ object Session {
         store.save(nf)
         file = nf
         data = newData
+        if (!quiet) onSaved?.invoke()
     }
 
     fun lock() {

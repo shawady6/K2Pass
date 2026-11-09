@@ -2,6 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-10 — v1.7.0 + Windows 0.3.0 (auto-sync, edit from PC, MSI)
+- الموبيل: بعد كل حفظ بـ4 ثواني يبعت الخزنة للكمبيوتر المربوط ويسحب النسخة المدموجة ويدمجها (نفس قواعد الـmerge).
+- الويندوز: إضافة/تعديل/حذف حسابات (عنوان، يوزر، باسورد، رابط، ملاحظات، TOTP، مفضّل، فولدر) وتتدمج مع الموبيل بالـmerge.
+- الويندوز: زر «السماح في الجدار الناري» + ملف تثبيت MSI (غير موقّع → تحذير SmartScreen).
+
 ## 2026-11-09 — Extension 0.7.0 + Windows 0.2.0 (extension ↔ app link, auto-update)
 - The Windows app serves its encrypted vault to the extension on `127.0.0.1:8767` (loopback only). Access is limited to the extension (no Origin + `Sec-Fetch-Site: none`, or the extension's origin) and to Host 127.0.0.1/localhost (anti DNS-rebinding); ordinary web pages get 403 (verified in real Chromium).
 - The extension adopts that vault by itself: when the popup opens and every minute in the background. No pairing, no LAN discovery.

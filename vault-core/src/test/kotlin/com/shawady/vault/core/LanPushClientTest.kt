@@ -25,6 +25,10 @@ class LanPushClientTest {
                     while (true) { val h = line(); if (h.isEmpty()) break; if (h.startsWith("Content-Length:", true)) len = h.substringAfter(':').trim().toInt() }
                     val code: Int; val body: String
                     if (req.startsWith("GET /n")) { code = 200; body = nonce }
+                    else if (req.startsWith("GET /v")) {
+                        val ok = req.contains("a=$nonce." + LanSyncServer.macHex(secret, "v|$nonce"))
+                        code = if (ok) 200 else 403; body = if (ok) """{"v":1,"wk":"m","data":"merged"}""" else "denied"
+                    }
                     else {
                         val data = ByteArray(len).also { var o = 0; while (o < len) { val n = inp.read(it, o, len - o); if (n < 0) break; o += n } }
                         val ok = req.contains("a=$nonce." + LanSyncServer.macHex(secret, "p|$nonce"))
@@ -53,5 +57,10 @@ class LanPushClientTest {
     @Test fun nothingListeningIsUnreachable() {
         ss.close()
         assertEquals(LanPushClient.Result.UNREACHABLE, LanPushClient.push("127.0.0.1", port, secret, "{}", 800))
+    }
+
+    @Test fun pullsTheMergedVaultBack() {
+        assertEquals("""{"v":1,"wk":"m","data":"merged"}""", LanPushClient.pull("127.0.0.1", port, secret))
+        assertEquals(null, LanPushClient.pull("127.0.0.1", port, ByteArray(32) { 7 }))
     }
 }

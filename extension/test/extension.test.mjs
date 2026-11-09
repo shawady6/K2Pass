@@ -191,3 +191,35 @@ test('isNewer only says yes for a strictly newer version (no reload loops)', () 
   assert.ok(isNewer('0.7.1', '0.7.0')); assert.ok(isNewer('0.10.0', '0.9.9')); assert.ok(isNewer('1.0', '0.9.9'));
   assert.ok(!isNewer('0.7.0', '0.7.0')); assert.ok(!isNewer('0.6.9', '0.7.0')); assert.ok(!isNewer('', '0.7.0')); assert.ok(!isNewer('x', '0.7.0'));
 });
+
+// ---- merge (must match vault-core VaultMerge; same vectors are asserted in Kotlin) ----
+const { mergeEntries, editEntry } = await import('../lib/merge.js');
+const { writeEntries, readEntries: readE2 } = await import('../lib/vault.js');
+import { readFileSync as rf } from 'node:fs';
+const vectors = JSON.parse(rf(new URL('./merge_vectors.json', import.meta.url), 'utf8'));
+test('merge vectors: results are stable and commutative/idempotent', () => {
+  for (const [name, c] of Object.entries(vectors)) {
+    assert.deepEqual(mergeEntries(c.a, c.b), c.merged, name);
+    assert.deepEqual(mergeEntries(c.b, c.a), c.merged, name + ' (commutative)');
+    assert.deepEqual(mergeEntries(c.merged, c.merged), c.merged, name + ' (idempotent)');
+  }
+});
+test('merge semantics (same expectations as VaultMergeTest.kt)', () => {
+  const v = vectors;
+  assert.equal(v.newerWins.merged[0].pass, 'new'); assert.deepEqual(v.newerWins.merged[0].hist.map((h) => h.pass), ['old']);
+  assert.ok(v.deleteWins.merged[0].del && !v.deleteWins.merged[0].hist);
+  assert.equal(v.historyCap.merged[0].hist.length, 20);
+});
+test('editEntry bumps ts and keeps the previous version in history only when content changed', () => {
+  const o = { id: '1', title: 'a', user: 'u', pass: 'p', url: '', notes: '', ts: 10, del: false, cat: 'other', type: 'login', fav: false };
+  const e = editEntry(o, { pass: 'q' }, 99);
+  assert.equal(e.ts, 99); assert.deepEqual(e.hist.map((h) => h.pass), ['p']);
+  assert.equal(editEntry(o, {}, 99).hist, undefined);
+});
+test('writeEntries produces a file the reader decrypts (fresh IV, same header and wk)', async () => {
+  const key = await unlockVault(file, 'Correct-Horse-9!');
+  const e = await readE2(file, key);
+  const f2 = await writeEntries(file, key, [...e, { id: 'new', title: 'N', user: '', pass: 'x', url: '', notes: '', ts: 1, del: false, cat: 'other', type: 'login', fav: false }]);
+  assert.equal(f2.wk, file.wk); assert.equal(f2.salt, file.salt); assert.notEqual(f2.data, file.data);
+  assert.equal((await readE2(f2, key)).length, e.length + 1);
+});

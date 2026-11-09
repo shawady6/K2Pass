@@ -77,7 +77,7 @@ fn private_ips() -> Vec<String> {
 
 /// Starts (or restarts) the receiver for the given pairing secrets (base64url, 43 chars each).
 #[tauri::command]
-fn lan_start(app: tauri::AppHandle, lan: State<Lan>, secrets: Vec<String>) -> Result<Listening, String> {
+fn lan_start(app: tauri::AppHandle, lan: State<Lan>, ext: State<Ext>, secrets: Vec<String>) -> Result<Listening, String> {
     let keys: Vec<Vec<u8>> = secrets.iter().filter_map(|s| k2_lan::decode_secret(s)).collect();
     if keys.is_empty() {
         return Err("no valid secret".into());
@@ -87,10 +87,18 @@ fn lan_start(app: tauri::AppHandle, lan: State<Lan>, secrets: Vec<String>) -> Re
         old.stop();
     }
     let make = |port: u16| {
-        let handle = app.clone();
-        k2_lan::Receiver::start(port, keys.clone(), move |vault| {
-            let _ = handle.emit("vault-pushed", vault);
-        })
+        let (h1, h2) = (app.clone(), app.clone());
+        k2_lan::Receiver::start(
+            port,
+            keys.clone(),
+            ext.vault.clone(),
+            move |vault| {
+                let _ = h1.emit("vault-pushed", vault);
+            },
+            move || {
+                let _ = h2.emit("vault-served", ());
+            },
+        )
     };
     let rx = make(k2_lan::PORT).or_else(|_| make(0))?;
     let port = rx.port;
@@ -165,6 +173,20 @@ fn ext_open_folder(ext: State<Ext>) {
     let _ = std::process::Command::new("explorer").arg(&ext.dir).spawn();
 }
 
+/// Opens TCP 8766 (private networks) in Windows Firewall so the phone can push to this PC. Shows the normal UAC prompt.
+#[tauri::command]
+fn allow_firewall() -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let args = "advfirewall firewall add rule name=K2Pass dir=in action=allow protocol=TCP localport=8766 profile=private,domain";
+    let ps = format!("Start-Process -FilePath netsh -ArgumentList '{}' -Verb RunAs -WindowStyle Hidden -Wait", args);
+    std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", &ps])
+        .creation_flags(0x08000000)
+        .status()
+        .map_err(|e| e.to_string())
+        .and_then(|s| if s.success() { Ok(()) } else { Err("cancelled".into()) })
+}
+
 #[tauri::command]
 fn new_secret() -> String {
     k2_lan::new_secret()
@@ -180,7 +202,7 @@ fn main() {
     tauri::Builder::default()
         .manage(Lan::default())
         .manage(Ext { dir, version: bundle.version, id, vault, server: Mutex::new(server) })
-        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull, vault_publish, ext_info, ext_open_folder])
+        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull, vault_publish, ext_info, ext_open_folder, allow_firewall])
         .run(tauri::generate_context!())
         .expect("error while running K2Pass");
 }

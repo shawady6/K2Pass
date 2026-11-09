@@ -1,0 +1,1271 @@
+{
+ "disjoint": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "b": [
+   {
+    "id": "2",
+    "title": "t-2",
+    "user": "u",
+    "pass": "b",
+    "url": "",
+    "notes": "",
+    "ts": 20,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   },
+   {
+    "id": "2",
+    "title": "t-2",
+    "user": "u",
+    "pass": "b",
+    "url": "",
+    "notes": "",
+    "ts": 20,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ]
+ },
+ "newerWins": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "old",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "new",
+    "url": "",
+    "notes": "",
+    "ts": 20,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "new",
+    "url": "",
+    "notes": "",
+    "ts": 20,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "old",
+      "url": "",
+      "notes": "",
+      "ts": 10,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ]
+ },
+ "tieSameTs": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "aaa",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "bbb",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "bbb",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "aaa",
+      "url": "",
+      "notes": "",
+      "ts": 10,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ]
+ },
+ "deleteWins": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "secret",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "",
+    "url": "",
+    "notes": "",
+    "ts": 20,
+    "del": true,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "",
+    "url": "",
+    "notes": "",
+    "ts": 20,
+    "del": true,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ]
+ },
+ "deleteTie": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "x",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": true,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": true,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ]
+ },
+ "extraAndTotp": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "totp": "JBSWY3DP",
+    "extra": {
+     "b": "2",
+     "a": "1"
+    }
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 11,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": true,
+    "totp": "JBSWY3DP",
+    "extra": {
+     "a": "1",
+     "b": "3"
+    },
+    "trash": 5
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 11,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": true,
+    "totp": "JBSWY3DP",
+    "trash": 5,
+    "extra": {
+     "a": "1",
+     "b": "3"
+    },
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "a",
+      "url": "",
+      "notes": "",
+      "ts": 10,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false,
+      "totp": "JBSWY3DP",
+      "extra": {
+       "b": "2",
+       "a": "1"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "historyMerge": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "cur",
+    "url": "",
+    "notes": "",
+    "ts": 100,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "h1",
+      "url": "",
+      "notes": "",
+      "ts": 50,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "h2",
+      "url": "",
+      "notes": "",
+      "ts": 40,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "cur",
+    "url": "",
+    "notes": "",
+    "ts": 100,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "h2",
+      "url": "",
+      "notes": "",
+      "ts": 40,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "h3",
+      "url": "",
+      "notes": "",
+      "ts": 60,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "cur",
+    "url": "",
+    "notes": "",
+    "ts": 100,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "h3",
+      "url": "",
+      "notes": "",
+      "ts": 60,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "h1",
+      "url": "",
+      "notes": "",
+      "ts": 50,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "h2",
+      "url": "",
+      "notes": "",
+      "ts": 40,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ]
+ },
+ "historyCap": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "cur",
+    "url": "",
+    "notes": "",
+    "ts": 100,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p1",
+      "url": "",
+      "notes": "",
+      "ts": 1,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p2",
+      "url": "",
+      "notes": "",
+      "ts": 2,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p3",
+      "url": "",
+      "notes": "",
+      "ts": 3,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p4",
+      "url": "",
+      "notes": "",
+      "ts": 4,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p5",
+      "url": "",
+      "notes": "",
+      "ts": 5,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p6",
+      "url": "",
+      "notes": "",
+      "ts": 6,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p7",
+      "url": "",
+      "notes": "",
+      "ts": 7,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p8",
+      "url": "",
+      "notes": "",
+      "ts": 8,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p9",
+      "url": "",
+      "notes": "",
+      "ts": 9,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p10",
+      "url": "",
+      "notes": "",
+      "ts": 10,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p11",
+      "url": "",
+      "notes": "",
+      "ts": 11,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p12",
+      "url": "",
+      "notes": "",
+      "ts": 12,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p13",
+      "url": "",
+      "notes": "",
+      "ts": 13,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p14",
+      "url": "",
+      "notes": "",
+      "ts": 14,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p15",
+      "url": "",
+      "notes": "",
+      "ts": 15,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p16",
+      "url": "",
+      "notes": "",
+      "ts": 16,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p17",
+      "url": "",
+      "notes": "",
+      "ts": 17,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p18",
+      "url": "",
+      "notes": "",
+      "ts": 18,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p19",
+      "url": "",
+      "notes": "",
+      "ts": 19,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p20",
+      "url": "",
+      "notes": "",
+      "ts": 20,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p21",
+      "url": "",
+      "notes": "",
+      "ts": 21,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p22",
+      "url": "",
+      "notes": "",
+      "ts": 22,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p23",
+      "url": "",
+      "notes": "",
+      "ts": 23,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p24",
+      "url": "",
+      "notes": "",
+      "ts": 24,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p25",
+      "url": "",
+      "notes": "",
+      "ts": 25,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p26",
+      "url": "",
+      "notes": "",
+      "ts": 26,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p27",
+      "url": "",
+      "notes": "",
+      "ts": 27,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p28",
+      "url": "",
+      "notes": "",
+      "ts": 28,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p29",
+      "url": "",
+      "notes": "",
+      "ts": 29,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p30",
+      "url": "",
+      "notes": "",
+      "ts": 30,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "cur",
+    "url": "",
+    "notes": "",
+    "ts": 100,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "cur",
+    "url": "",
+    "notes": "",
+    "ts": 100,
+    "del": false,
+    "cat": "other",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p30",
+      "url": "",
+      "notes": "",
+      "ts": 30,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p29",
+      "url": "",
+      "notes": "",
+      "ts": 29,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p28",
+      "url": "",
+      "notes": "",
+      "ts": 28,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p27",
+      "url": "",
+      "notes": "",
+      "ts": 27,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p26",
+      "url": "",
+      "notes": "",
+      "ts": 26,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p25",
+      "url": "",
+      "notes": "",
+      "ts": 25,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p24",
+      "url": "",
+      "notes": "",
+      "ts": 24,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p23",
+      "url": "",
+      "notes": "",
+      "ts": 23,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p22",
+      "url": "",
+      "notes": "",
+      "ts": 22,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p21",
+      "url": "",
+      "notes": "",
+      "ts": 21,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p20",
+      "url": "",
+      "notes": "",
+      "ts": 20,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p19",
+      "url": "",
+      "notes": "",
+      "ts": 19,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p18",
+      "url": "",
+      "notes": "",
+      "ts": 18,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p17",
+      "url": "",
+      "notes": "",
+      "ts": 17,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p16",
+      "url": "",
+      "notes": "",
+      "ts": 16,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p15",
+      "url": "",
+      "notes": "",
+      "ts": 15,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p14",
+      "url": "",
+      "notes": "",
+      "ts": 14,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p13",
+      "url": "",
+      "notes": "",
+      "ts": 13,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p12",
+      "url": "",
+      "notes": "",
+      "ts": 12,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     },
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "p11",
+      "url": "",
+      "notes": "",
+      "ts": 11,
+      "del": false,
+      "cat": "other",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ]
+ },
+ "folderMove": {
+  "a": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 10,
+    "del": false,
+    "cat": "f:abc",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "b": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 12,
+    "del": false,
+    "cat": "f:xyz",
+    "type": "login",
+    "fav": false
+   }
+  ],
+  "merged": [
+   {
+    "id": "1",
+    "title": "t-1",
+    "user": "u",
+    "pass": "a",
+    "url": "",
+    "notes": "",
+    "ts": 12,
+    "del": false,
+    "cat": "f:xyz",
+    "type": "login",
+    "fav": false,
+    "hist": [
+     {
+      "id": "1",
+      "title": "t-1",
+      "user": "u",
+      "pass": "a",
+      "url": "",
+      "notes": "",
+      "ts": 10,
+      "del": false,
+      "cat": "f:abc",
+      "type": "login",
+      "fav": false
+     }
+    ]
+   }
+  ]
+ }
+}
