@@ -122,7 +122,7 @@ async function openPair(fresh) {
     const r = await invoke('lan_start', { secrets: store.get('secrets', []) });
     const ip = r.ips[0];
     if (!ip) { msg('مفيش شبكة محلية. وصّل الكمبيوتر بالواي فاي.', 'bad'); return; }
-    const text = `k2pair://${pairSecret}@${ip}:${r.port}`;
+    const text = `k2pair://${pairSecret}@${r.ips.slice(0, 3).map((x) => `${x}:${r.port}`).join(',')}`;   // phone tries each address
     const q = qrcode(0, 'M'); q.addData(text); q.make();
     $('qr').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
     $('qr').dataset.pair = text;

@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-09 — v1.6.1 + Windows 0.1.1
+- Fix "phone can't reach the computer": the PC QR used the alphabetically-first private IP, which on many PCs is a virtual adapter (WSL/VirtualBox/VPN). Now the default-route adapter comes first and the QR carries up to 3 addresses (`@ip:port,ip:port`); the phone tries each (2.5 s) and says which it tried.
+
 ## 2026-11-09 — v1.6.0 + Windows app 0.1 (phase A)
 - New **K2Pass for Windows** (Tauri 2, `windows/`): opens the encrypted vault (same Argon2id/AES-GCM code as the extension), search, folders, copy user/password, live TOTP, auto-lock, import file. It **listens** on port 8766 (Rust, `windows/k2-lan`), shows a pairing QR `k2pair://<secret>@<ip>:<port>`; the phone scans it and **pushes** its encrypted vault (HMAC-signed, single-use nonce). Fixes the "extension can't be found" problem for good: the PC is now the listener.
 - Phone 1.6.0: the existing scan button also understands the PC QR; "📤 ابعت الخزنة لتطبيق الكمبيوتر" re-sends later. `LanPushClient` + tests.

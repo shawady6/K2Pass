@@ -71,16 +71,22 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
 
     var pcTarget by remember { mutableStateOf(prefs.pcTarget) }
     fun pushToPc(): Unit {
-        val m = Regex("^([A-Za-z0-9_-]{43})@(\\d{1,3}(?:\\.\\d{1,3}){3}):(\\d{2,5})$").find(pcTarget) ?: run { status = "مفيش كمبيوتر مربوط."; return }
+        val m = Regex("^([A-Za-z0-9_-]{43})@(.+)$").find(pcTarget) ?: run { status = "مفيش كمبيوتر مربوط."; return }
         val vault = rawVault() ?: run { status = "مفيش خزنة تتبعت."; return }
+        val secret = Base64.decode(m.groupValues[1], Base64.URL_SAFE)
+        val addrs = m.groupValues[2].split(',').mapNotNull { a -> a.substringBefore(':').takeIf { it.isNotEmpty() }?.let { it to (a.substringAfter(':').toIntOrNull() ?: 8766) } }
         status = "باعت الخزنة للكمبيوتر…"
         Thread {
-            val r = LanPushClient.push(m.groupValues[2], m.groupValues[3].toInt(), Base64.decode(m.groupValues[1], Base64.URL_SAFE), vault)
+            var r = LanPushClient.Result.UNREACHABLE
+            for ((h, p) in addrs) {          // the PC lists every private address it has; the first that answers wins
+                r = LanPushClient.push(h, p, secret, vault, 2500)
+                if (r != LanPushClient.Result.UNREACHABLE) break
+            }
             main.post {
                 status = when (r) {
                     LanPushClient.Result.OK -> "الخزنة وصلت الكمبيوتر ✔"
                     LanPushClient.Result.DENIED -> "الكمبيوتر رفض الكود. اعمل ربط جديد من تطبيق الكمبيوتر."
-                    LanPushClient.Result.UNREACHABLE -> "مقدرتش أوصل للكمبيوتر. شغّل تطبيق K2Pass عليه، ونفس الواي فاي."
+                    LanPushClient.Result.UNREACHABLE -> "مقدرتش أوصل للكمبيوتر (${addrs.joinToString { it.first }}). تأكد إن تطبيق K2Pass مفتوح على الكمبيوتر، ونفس الواي فاي، وإن الجدار الناري سامح."
                     LanPushClient.Result.REJECTED -> "الكمبيوتر ما قبلش الملف."
                 }
             }
@@ -89,15 +95,18 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
 
     val scan = rememberLauncherForActivityResult(ScanContract()) { r ->
         val c = r.contents ?: return@rememberLauncherForActivityResult
-        val m = Regex("^k2pair://([A-Za-z0-9_-]{43})(?:@(\\d{1,3}(?:\\.\\d{1,3}){3}):(\\d{2,5}))?$").find(c.trim())
+        val m = Regex("^k2pair://([A-Za-z0-9_-]{43})(?:@(.+))?$").find(c.trim())
         if (m == null) { status = "الكود ده مش كود ربط من K2Pass."; return@rememberLauncherForActivityResult }
-        val ip = m.groupValues[2]
-        if (ip.isNotEmpty()) {
-            // Windows app: it listens, we push.
-            val o = ip.split('.').map { it.toInt() }
-            val priv = o.all { it <= 255 } && (o[0] == 10 || (o[0] == 192 && o[1] == 168) || (o[0] == 172 && o[1] in 16..31))
-            if (!priv) { status = "عنوان الكمبيوتر مش على شبكة محلية."; return@rememberLauncherForActivityResult }
-            pcTarget = "${m.groupValues[1]}@$ip:${m.groupValues[3]}"; prefs.pcTarget = pcTarget
+        val hosts = m.groupValues[2]
+        if (hosts.isNotEmpty()) {
+            // Windows app: it listens, we push. Every address must be a private IPv4 with a port.
+            val ok = hosts.split(',').all { a ->
+                val mm = Regex("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3}):(\\d{2,5})$").find(a) ?: return@all false
+                val o = mm.groupValues.drop(1).take(4).map { it.toInt() }
+                o.all { it <= 255 } && (o[0] == 10 || (o[0] == 192 && o[1] == 168) || (o[0] == 172 && o[1] in 16..31))
+            }
+            if (!ok) { status = "عنوان الكمبيوتر مش على شبكة محلية."; return@rememberLauncherForActivityResult }
+            pcTarget = "${m.groupValues[1]}@$hosts"; prefs.pcTarget = pcTarget
             pushToPc()
         } else {
             prefs.addLanSecret(m.groupValues[1])

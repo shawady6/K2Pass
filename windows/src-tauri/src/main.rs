@@ -22,6 +22,14 @@ fn private_ips() -> Vec<String> {
         .collect();
     v.sort();
     v.dedup();
+    // The adapter that carries the default route (the real Wi-Fi/Ethernet) goes first, not a VPN/WSL/VirtualBox one.
+    if let Ok(std::net::IpAddr::V4(main)) = local_ip_address::local_ip() {
+        let m = main.to_string();
+        if let Some(i) = v.iter().position(|x| *x == m) {
+            let x = v.remove(i);
+            v.insert(0, x);
+        }
+    }
     v
 }
 
