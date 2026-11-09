@@ -112,7 +112,7 @@ async function doUnlock() {
 }
 
 // ---- phone pairing: this app LISTENS, the phone pushes its encrypted vault here ----
-let pairSecret = null;
+let pairSecret = null, scanning = 0;
 function msg(t, cls) { $('msg').textContent = t; $('status').className = 'status' + (cls ? ' ' + cls : ''); }
 async function openPair(fresh) {
   show('v-pair');
@@ -128,7 +128,25 @@ async function openPair(fresh) {
     $('qr').dataset.pair = text;
     $('addr').textContent = r.ips.map((x) => `${x}:${r.port}`).join('   ');
     msg('في انتظار الموبايل… امسح الكود.');
+    scanLoop();
   } catch (e) { msg('تعذّر تشغيل الاستقبال: ' + e, 'bad'); }
+}
+// Second path (works even when the PC firewall blocks the phone): this app looks for the phone's server and pulls from it.
+async function scanLoop() {
+  const me = ++scanning;
+  while (me === scanning && !$('v-pair').classList.contains('hidden')) {
+    try {
+      const hit = await invoke('phone_find', { secrets: store.get('secrets', []) });
+      if (hit && me === scanning) { scanning++; return onPushed(hit.vault); }
+    } catch { /* retry */ }
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+}
+async function manualPull() {
+  const a = $('manual').value.trim(); if (!a) return;
+  msg('بكلّم الموبايل…');
+  try { scanning++; await onPushed(await invoke('phone_pull', { addr: a, secrets: store.get('secrets', []) })); }
+  catch (e) { msg(String(e), 'bad'); scanLoop(); }
 }
 async function onPushed(text) {
   try {
@@ -145,8 +163,9 @@ window.__k2push = onPushed;                                // test hook (plain-b
 $('btn-unlock').onclick = doUnlock; $('pw').onkeydown = (e) => { if (e.key === 'Enter') doUnlock(); };
 $('btn-lock').onclick = lock; $('q').oninput = render; $('folder').onchange = render;
 $('btn-pair').onclick = () => openPair(false); $('go-pair').onclick = () => openPair(true);
+$('use-manual').onclick = manualPull;
 $('new-code').onclick = () => openPair(true);
-$('pair-back').onclick = () => { if (key) show('v-list'); else if (vaultFile) show('v-unlock'); else show('v-import'); };
+$('pair-back').onclick = () => { scanning++; if (key) show('v-list'); else if (vaultFile) show('v-unlock'); else show('v-import'); };
 $('forget').onclick = () => { if (!confirm('تمسح الخزنة من هذا الكمبيوتر؟')) return; store.set('vault', null); localStorage.removeItem('vault'); vaultFile = null; show('v-import'); };
 $('file').onchange = async (ev) => {
   const f = ev.target.files[0]; if (!f) return; $('import-err').textContent = '';

@@ -47,11 +47,16 @@
 
   <section id="v-pair" class="hidden"><div class="card">
     <div class="step"><div class="num">1</div><div><h2>امسح الكود بالموبايل</h2>
-      <p class="hint">افتح K2Pass ← <b>الأدوات</b> ← <b>مزامنة مع الكمبيوتر</b> ← <b>مسح كود الكمبيوتر</b>. الاتنين على نفس الواي فاي.</p></div></div>
+      <p class="hint">افتح K2Pass ← <b>الأدوات</b> ← <b>مزامنة</b> ← <b>مسح كود</b> وسيب الشاشة مفتوحة. الاتنين على نفس الواي فاي.</p></div></div>
     <div id="qr"></div>
     <p class="hint" style="text-align:center"><i data-i="shield" data-s="14"></i> الكود سرّ ربط. ما تصوّرهوش.</p>
     <div id="status" class="status"><span class="dot"></span><span id="msg">بجهّز…</span></div>
     <p class="hint" id="addr" dir="ltr" style="text-align:center"></p>
+    <details>
+      <summary>مش بيتربط؟ اكتب عنوان الموبايل</summary>
+      <p class="hint" style="margin:8px 0">العنوان الظاهر في التطبيق («شغّال على …»):</p>
+      <div class="row2"><input id="manual" type="text" placeholder="192.168.1.20" dir="ltr"><button id="use-manual" class="ghost">ربط</button></div>
+    </details>
     <p class="hint">أول مرة، ويندوز هيسأل عن الجدار الناري: اضغط <b>السماح</b> للشبكات الخاصة.</p>
     <div class="row2"><button id="new-code" class="ghost"><i data-i="sync" data-s="16"></i>كود جديد</button><button id="pair-back" class="ghost">رجوع</button></div>
   </div></section>

@@ -2,6 +2,11 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-09 — v1.6.2 + Windows 0.1.2 (two-way link: works even behind the PC firewall)
+- The Windows firewall blocks *incoming* connections (phone → PC) but not outgoing ones, so a second path was added: the PC app scans its own /24 networks (fast TCP probe, native Rust) for the phone's server on 8765 and pulls the vault with the same HMAC protocol as the extension. Manual address box in the pairing screen.
+- Phone: if pushing to the PC fails (unreachable), it keeps the pairing secret and automatically starts its server so the PC can pull. One QR, both directions.
+- Tests: Rust client pull/scan against a fake phone.
+
 ## 2026-11-09 — v1.6.1 + Windows 0.1.1
 - Fix "phone can't reach the computer": the PC QR used the alphabetically-first private IP, which on many PCs is a virtual adapter (WSL/VirtualBox/VPN). Now the default-route adapter comes first and the QR carries up to 3 addresses (`@ip:port,ip:port`); the phone tries each (2.5 s) and says which it tried.
 

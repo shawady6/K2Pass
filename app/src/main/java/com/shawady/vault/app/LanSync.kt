@@ -86,7 +86,11 @@ fun LanSyncSection(rawVault: () -> String?, prefs: AppPrefs) {
                 status = when (r) {
                     LanPushClient.Result.OK -> "الخزنة وصلت الكمبيوتر ✔"
                     LanPushClient.Result.DENIED -> "الكمبيوتر رفض الكود. اعمل ربط جديد من تطبيق الكمبيوتر."
-                    LanPushClient.Result.UNREACHABLE -> "مقدرتش أوصل للكمبيوتر (${addrs.joinToString { it.first }}). تأكد إن تطبيق K2Pass مفتوح على الكمبيوتر، ونفس الواي فاي، وإن الجدار الناري سامح."
+                    LanPushClient.Result.UNREACHABLE -> {
+                        // Probably the PC firewall: flip the direction. We serve, the PC (outgoing connections aren't blocked) pulls.
+                        prefs.addLanSecret(m.groupValues[1])
+                        if (start()) "الكمبيوتر مش بيستقبل (غالبًا الجدار الناري)، فشغّلت وضع السحب: تطبيق الكمبيوتر هيلاقي الموبايل لوحده. سيب الشاشة دي مفتوحة. العنوان: $addr" else status
+                    }
                     LanPushClient.Result.REJECTED -> "الكمبيوتر ما قبلش الملف."
                 }
             }

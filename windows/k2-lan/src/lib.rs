@@ -2,6 +2,7 @@
 //!   GET  /n                     -> 32-hex single-use nonce (valid 30 s)
 //!   POST /push?a=<nonce>.<hex>  -> body = vault file; hex = HMAC-SHA256(secret, "p|" + nonce)
 //! Auth is checked against every paired secret in constant time; the secret itself never travels.
+pub mod client;
 use base64::Engine;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
