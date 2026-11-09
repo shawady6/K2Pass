@@ -4,6 +4,7 @@ import { matchesHost, isLive, FOLDER_TYPE, folderKey, allUrls } from './lib/matc
 import { fillInPage } from './lib/fill.js';
 import { pullVault, discover } from './lib/sync.js';
 import { icon, hydrate } from './lib/icons.js';
+import { desktopInfo, desktopVault } from './lib/desktop.js';
 hydrate();
 
 const $ = (id) => document.getElementById(id);
@@ -36,6 +37,9 @@ async function init() {
     tabId = tab.id;
     try { const u = new URL(tab.url); if (/^https?:$/.test(u.protocol)) pageHost = u.hostname; } catch {}
   }
+  // Windows app on this computer? Take its vault straight away (no pairing, no network).
+  const info = await desktopInfo(600);
+  if (info && info.hasVault) { const t = await desktopVault(); if (t) { try { parseVaultFile(t); await chrome.storage.local.set({ vault: t }); } catch { /* keep what we have */ } } }
   const { vault } = await chrome.storage.local.get('vault');
   if (!vault) return show('v-import');
   vaultFile = parseVaultFile(vault);

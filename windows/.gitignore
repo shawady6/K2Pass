@@ -4,3 +4,4 @@ ui/icons/
 ui/base.css
 target/
 src-tauri/gen/
+src-tauri/ext.bundle.json

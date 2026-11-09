@@ -1,9 +1,51 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use std::sync::Mutex;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, State};
 
 #[derive(Default)]
 struct Lan(Mutex<Option<k2_lan::Receiver>>);
+
+/// The extension shipped inside this exe (see pack-ext.mjs) and where it gets unpacked.
+#[derive(serde::Deserialize)]
+struct Bundle {
+    version: String,
+    key: String,
+    files: std::collections::HashMap<String, String>,
+}
+const BUNDLE: &str = include_str!("../ext.bundle.json");
+
+struct Ext {
+    dir: PathBuf,
+    version: String,
+    id: String,
+    vault: Arc<Mutex<Option<String>>>,
+    server: Mutex<Option<k2_lan::local::LocalServer>>,
+}
+
+fn ext_dir() -> PathBuf {
+    let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
+    base.join("K2Pass").join("extension")
+}
+
+/// Unpacks the bundled extension into [dir] when it isn't there yet or is another version (the folder is ours, so it is replaced whole).
+fn install_extension(b: &Bundle, dir: &PathBuf) -> Result<(), String> {
+    use base64::Engine;
+    let marker = dir.join(".k2ver");
+    if std::fs::read_to_string(&marker).map(|v| v.trim() == b.version).unwrap_or(false) {
+        return Ok(());
+    }
+    let _ = std::fs::remove_dir_all(dir);
+    for (rel, b64) in &b.files {
+        if rel.contains("..") {
+            continue;
+        }
+        let path = dir.join(rel);
+        std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+        std::fs::write(&path, base64::engine::general_purpose::STANDARD.decode(b64).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(marker, &b.version).map_err(|e| e.to_string())
+}
 
 #[derive(serde::Serialize)]
 struct Listening {
@@ -99,15 +141,46 @@ fn phone_pull(addr: String, secrets: Vec<String>) -> Result<String, String> {
     Err("الموبايل رفض الكود. امسح كود جديد.".into())
 }
 
+#[derive(serde::Serialize)]
+struct ExtInfo {
+    path: String,
+    version: String,
+    id: String,
+    serving: bool,
+}
+
+/// The webview hands over the (encrypted) vault file whenever it changes; the extension reads it from the loopback server.
+#[tauri::command]
+fn vault_publish(ext: State<Ext>, text: Option<String>) {
+    *ext.vault.lock().unwrap() = text;
+}
+
+#[tauri::command]
+fn ext_info(ext: State<Ext>) -> ExtInfo {
+    ExtInfo { path: ext.dir.display().to_string(), version: ext.version.clone(), id: ext.id.clone(), serving: ext.server.lock().unwrap().is_some() }
+}
+
+#[tauri::command]
+fn ext_open_folder(ext: State<Ext>) {
+    let _ = std::process::Command::new("explorer").arg(&ext.dir).spawn();
+}
+
 #[tauri::command]
 fn new_secret() -> String {
     k2_lan::new_secret()
 }
 
 fn main() {
+    let bundle: Bundle = serde_json::from_str(BUNDLE).expect("ext.bundle.json");
+    let dir = ext_dir();
+    let _ = install_extension(&bundle, &dir);
+    let id = k2_lan::local::extension_id(&bundle.key).unwrap_or_default();
+    let vault = Arc::new(Mutex::new(None));
+    let server = k2_lan::local::LocalServer::start(k2_lan::local::LOCAL_PORT, vec![format!("chrome-extension://{id}")], vault.clone(), bundle.version.clone()).ok();
     tauri::Builder::default()
         .manage(Lan::default())
-        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull])
+        .manage(Ext { dir, version: bundle.version, id, vault, server: Mutex::new(server) })
+        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull, vault_publish, ext_info, ext_open_folder])
         .run(tauri::generate_context!())
         .expect("error while running K2Pass");
 }

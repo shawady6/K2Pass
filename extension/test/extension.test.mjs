@@ -184,3 +184,10 @@ test('wide sweep covers 192.168.0-255 minus what was already tried', () => {
   const w = wideSubnets(['192.168.1', '192.168.0']);
   assert.equal(w.length, 254); assert.ok(!w.includes('192.168.1')); assert.ok(w.includes('192.168.31'));
 });
+
+// ---- Windows-app link helpers ----
+const { isNewer } = await import('../lib/desktop.js');
+test('isNewer only says yes for a strictly newer version (no reload loops)', () => {
+  assert.ok(isNewer('0.7.1', '0.7.0')); assert.ok(isNewer('0.10.0', '0.9.9')); assert.ok(isNewer('1.0', '0.9.9'));
+  assert.ok(!isNewer('0.7.0', '0.7.0')); assert.ok(!isNewer('0.6.9', '0.7.0')); assert.ok(!isNewer('', '0.7.0')); assert.ok(!isNewer('x', '0.7.0'));
+});

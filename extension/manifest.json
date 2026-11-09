@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "K2Pass",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "K2Pass — خزنة باسوردات أوفلاين. بتقترح حساباتك جوه صفحات الدخول وبتملاها بضغطة.",
   "action": {
     "default_popup": "popup.html",
@@ -38,5 +38,9 @@
       ],
       "run_at": "document_idle"
     }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqTnxT2hSR8T3yBvIc3KhP7kbApUjP8u5LoSOCYY/TziJ2bMyUUDB4FP0+EeNVFqOredRdOI3Vf+YIk2Wdc65BFS0FpfwSWKfRAIZ28E1WCgXuubQv+IHX1XPtNFi4Pp/W54zw9QRuCvfrGZHVAkQIbY8wvU76Hhr+rpzgXGj+ltuKxksXFJEPlUP9vtz/YIzW337vHLQ085QEzSqSqcs83PD4wycux8GrDUj/uYmkDHPXuuW74L0+dFmc9n/SIMHqTdd4rjsM4x87rpbjfTa6rTQlVN3+fm9oK0Irsz551Poeeqr08B1+nPxG6wRfEx8mEUuVCztFxOOQUzSWVcK8wIDAQAB",
+  "host_permissions": [
+    "http://127.0.0.1:8767/*"
   ]
 }

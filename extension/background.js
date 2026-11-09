@@ -1,8 +1,27 @@
 import { parseVaultFile, readEntries, b64d } from './lib/vault.js';
 import { suggestionsFor, credentialFor } from './lib/suggest.js';
+import { desktopInfo, desktopVault, isNewer } from './lib/desktop.js';
+
+// Windows-app link: once a minute (and at start) ask the local K2Pass app for its vault and for the extension version it ships.
+// New vault -> stored (the popup asks for the master password again if the key no longer fits). Newer extension files -> reload.
+async function desktopTick() {
+  const info = await desktopInfo();
+  if (!info) return;
+  if (isNewer(info.ext, chrome.runtime.getManifest().version)) { chrome.runtime.reload(); return; }
+  if (!info.hasVault) return;
+  const text = await desktopVault();
+  if (!text) return;
+  const { vault } = await chrome.storage.local.get('vault');
+  if (text !== vault) { try { parseVaultFile(text); await chrome.storage.local.set({ vault: text }); } catch { /* ignore garbage */ } }
+}
+chrome.alarms.create('k2-desktop', { periodInMinutes: 1 });
+chrome.runtime.onStartup.addListener(desktopTick);
+chrome.runtime.onInstalled.addListener(desktopTick);
+desktopTick();
 
 // Auto-lock: the unlocked vault key lives only in chrome.storage.session and is wiped when the alarm fires.
 chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === 'k2-desktop') return void desktopTick();
   if (a.name !== 'k2-lock') return;
   chrome.storage.session.remove(['k', 'until']);
 });

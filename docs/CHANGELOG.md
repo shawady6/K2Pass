@@ -2,6 +2,13 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-09 — Extension 0.7.0 + Windows 0.2.0 (extension ↔ app link, auto-update)
+- The Windows app serves its encrypted vault to the extension on `127.0.0.1:8767` (loopback only). Access is limited to the extension (no Origin + `Sec-Fetch-Site: none`, or the extension's origin) and to Host 127.0.0.1/localhost (anti DNS-rebinding); ordinary web pages get 403 (verified in real Chromium).
+- The extension adopts that vault by itself: when the popup opens and every minute in the background. No pairing, no LAN discovery.
+- Auto-update: the exe embeds the extension and unpacks it to `%LOCALAPPDATA%\K2Pass\extension`; the extension compares the version the app reports and calls `chrome.runtime.reload()` when the app's is newer (strictly newer only, so no reload loops). Install once with Load unpacked on that folder (the ⚡ page in the app shows the path and opens it).
+- Stable extension ID (`key` in manifest): `oaajbmighjeafhmeigedfoegbfojjenb`. **The ID changed in this version, so re-load the extension once and its old stored data is gone.**
+- Tests: 6 Rust (loopback access rules, extension id), 16 JS.
+
 ## 2026-11-09 — v1.6.2 + Windows 0.1.2 (two-way link: works even behind the PC firewall)
 - The Windows firewall blocks *incoming* connections (phone → PC) but not outgoing ones, so a second path was added: the PC app scans its own /24 networks (fast TCP probe, native Rust) for the phone's server on 8765 and pulls the vault with the same HMAC protocol as the extension. Manual address box in the pairing screen.
 - Phone: if pushing to the PC fails (unreachable), it keeps the pairing secret and automatically starts its server so the PC can pull. One QR, both directions.

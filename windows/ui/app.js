@@ -13,21 +13,25 @@ const store = {
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
 };
 
-let vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
+let lastView = 'v-import', vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
 
-const VIEWS = ['v-import', 'v-unlock', 'v-list', 'v-pair'];
+const VIEWS = ['v-import', 'v-unlock', 'v-list', 'v-pair', 'v-ext'];
 function show(v) {
   for (const x of VIEWS) $(x).classList.toggle('hidden', x !== v);
   $('btn-lock').classList.toggle('hidden', v !== 'v-list');
   $('btn-pair').classList.toggle('hidden', v === 'v-import' || v === 'v-pair');
+  $('btn-ext').classList.toggle('hidden', v === 'v-ext');
+  if (v !== 'v-ext') lastView = v;
 }
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 2200); }
 async function copy(text, label) { await navigator.clipboard.writeText(text); toast(`اتنسخ ${label}`); clearTimeout(copy.t); copy.t = setTimeout(() => navigator.clipboard.writeText(' ').catch(() => {}), 20000); }
 function bump() { clearTimeout(idle); if (key) idle = setTimeout(lock, LOCK_MS); }
 ['mousemove', 'keydown', 'click'].forEach((e) => addEventListener(e, bump, true));
 
+const publish = (t) => invoke('vault_publish', { text: t }).catch(() => {});
 function start() {
   const text = store.get('vault', null);
+  publish(text);
   if (!text) return show('v-import');
   vaultFile = parseVaultFile(text);
   show('v-unlock'); $('pw').focus();
@@ -151,7 +155,7 @@ async function manualPull() {
 async function onPushed(text) {
   try {
     const f = parseVaultFile(text);
-    store.set('vault', text); vaultFile = f;
+    store.set('vault', text); vaultFile = f; publish(text);
     msg('وصلت الخزنة من الموبايل ✔', 'ok'); toast('اتحدّثت الخزنة من الموبايل');
     if (key) { try { await load(key); return; } catch { key = null; } }
     show('v-unlock'); $('pw').focus();
@@ -166,9 +170,18 @@ $('btn-pair').onclick = () => openPair(false); $('go-pair').onclick = () => open
 $('use-manual').onclick = manualPull;
 $('new-code').onclick = () => openPair(true);
 $('pair-back').onclick = () => { scanning++; if (key) show('v-list'); else if (vaultFile) show('v-unlock'); else show('v-import'); };
-$('forget').onclick = () => { if (!confirm('تمسح الخزنة من هذا الكمبيوتر؟')) return; store.set('vault', null); localStorage.removeItem('vault'); vaultFile = null; show('v-import'); };
+$('forget').onclick = () => { if (!confirm('تمسح الخزنة من هذا الكمبيوتر؟')) return; store.set('vault', null); localStorage.removeItem('vault'); publish(null); vaultFile = null; show('v-import'); };
 $('file').onchange = async (ev) => {
   const f = ev.target.files[0]; if (!f) return; $('import-err').textContent = '';
-  try { const text = await f.text(); vaultFile = parseVaultFile(text); store.set('vault', text); show('v-unlock'); $('pw').focus(); } catch (e) { $('import-err').textContent = e.message; }
+  try { const text = await f.text(); vaultFile = parseVaultFile(text); store.set('vault', text); publish(text); show('v-unlock'); $('pw').focus(); } catch (e) { $('import-err').textContent = e.message; }
 };
+async function openExt() {
+  show('v-ext');
+  try { const i = await invoke('ext_info'); $('ext-path').textContent = i.path; $('ext-status').textContent = i.serving ? `الإضافة المرفقة: ${i.version}. التطبيق جاهز يخدّمها.` : 'تعذّر تشغيل الخدمة المحلية (البورت 8767 مشغول؟).'; }
+  catch { $('ext-status').textContent = 'متاح في تطبيق الويندوز بس.'; }
+}
+$('btn-ext').onclick = openExt;
+$('ext-open').onclick = () => invoke('ext_open_folder');
+$('ext-copy').onclick = () => copy($('ext-path').textContent, 'المسار');
+$('ext-back').onclick = () => show(lastView);
 start();

@@ -9,6 +9,7 @@
 <header>
   <div class="brand"><img src="icons/48.png" alt="" width="28" height="28"><span>K2Pass</span></div>
   <div class="hdr-actions">
+    <button id="btn-ext" class="icon" title="إضافة المتصفح"><i data-i="bolt"></i></button>
     <button id="btn-pair" class="icon hidden" title="مزامنة مع الموبايل"><i data-i="phone"></i></button>
     <button id="btn-lock" class="icon hidden" title="قفل"><i data-i="lock"></i></button>
   </div>
@@ -44,6 +45,17 @@
       <div class="pane-r" id="detail"><p class="empty">اختار حساب من القايمة</p></div>
     </div>
   </section>
+
+  <section id="v-ext" class="hidden"><div class="card">
+    <h2>إضافة المتصفح</h2>
+    <p class="lead">الإضافة بتاخد الخزنة من التطبيق ده مباشرة على نفس الكمبيوتر، وبتتحدّث لوحدها كل ما التطبيق يتحدّث.</p>
+    <div class="step"><div class="num">1</div><div><h2>ثبّتها مرة واحدة</h2><p class="hint">في Brave / Chrome / Edge افتح <b>chrome://extensions</b> وفعّل <b>Developer mode</b>، واضغط <b>Load unpacked</b> واختار الفولدر ده:</p></div></div>
+    <div class="f"><span class="v" id="ext-path" dir="ltr"></span><button id="ext-copy" title="نسخ"><i data-i="copy" data-s="16"></i></button></div>
+    <button id="ext-open" class="ghost"><i data-i="folder" data-s="16"></i>فتح الفولدر</button>
+    <div class="step"><div class="num">2</div><div><h2>خلاص</h2><p class="hint">بعد كده أي خزنة تتحمّل هنا تظهر في الإضافة لوحدها، وأي تحديث للتطبيق يحدّث الإضافة.</p></div></div>
+    <p id="ext-status" class="hint"></p>
+    <button id="ext-back" class="ghost">رجوع</button>
+  </div></section>
 
   <section id="v-pair" class="hidden"><div class="card">
     <div class="step"><div class="num">1</div><div><h2>امسح الكود بالموبايل</h2>

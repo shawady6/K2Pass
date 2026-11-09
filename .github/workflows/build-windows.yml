@@ -3,7 +3,7 @@ name: Build Windows app
 on:
   push:
     branches: [main]
-    paths: ['windows/**', 'extension/lib/**', 'extension/popup.css', '.github/workflows/build-windows.yml']
+    paths: ['windows/**', 'extension/**', '.github/workflows/build-windows.yml']
   workflow_dispatch:
 
 permissions:

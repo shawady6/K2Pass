@@ -8,3 +8,4 @@ for f in vault.js totp.js match.js icons.js argon2.umd.min.js qrcode.js; do cp .
 cp ../extension/fonts/*.ttf ui/fonts/
 cp ../extension/icons/48.png ../extension/icons/128.png ui/icons/
 cp ../extension/popup.css ui/base.css
+node pack-ext.mjs
