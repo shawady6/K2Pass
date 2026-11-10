@@ -187,6 +187,36 @@ fn allow_firewall() -> Result<(), String> {
         .and_then(|s| if s.success() { Ok(()) } else { Err("cancelled".into()) })
 }
 
+fn ps(script: &str) -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
+    let o = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", script])
+        .creation_flags(0x08000000)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if o.status.success() { Ok(String::from_utf8_lossy(&o.stdout).trim().to_string()) } else { Err(String::from_utf8_lossy(&o.stderr).trim().to_string()) }
+}
+
+/// True when the published build differs from this exe (the release notes carry the exe's sha256).
+#[tauri::command]
+fn update_check() -> Result<bool, String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let mine = ps(&format!("(Get-FileHash -Algorithm SHA256 -LiteralPath '{}').Hash.ToLower()", exe.display()))?;
+    let notes = ps("[Net.ServicePointManager]::SecurityProtocol='Tls12'; (Invoke-RestMethod -UseBasicParsing https://api.github.com/repos/shawady6/K2Pass/releases/tags/windows).body")?;
+    let theirs = notes.split("sha256:").nth(1).map(|x| x.trim().to_lowercase()).unwrap_or_default();
+    if theirs.len() < 64 { return Err("no hash".into()); }
+    Ok(!theirs.starts_with(&mine))
+}
+
+/// Downloads the MSI, starts the installer and quits so the files can be replaced.
+#[tauri::command]
+fn update_install(app: tauri::AppHandle) -> Result<(), String> {
+    ps("[Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest -UseBasicParsing https://github.com/shawady6/K2Pass/releases/download/windows/K2Pass-Windows.msi -OutFile \"$env:TEMP\\K2Pass-Windows.msi\"")?;
+    std::process::Command::new("msiexec").args(["/i", &format!("{}\\K2Pass-Windows.msi", std::env::temp_dir().display()), "/passive"]).spawn().map_err(|e| e.to_string())?;
+    app.exit(0);
+    Ok(())
+}
+
 #[tauri::command]
 fn new_secret() -> String {
     k2_lan::new_secret()
@@ -202,7 +232,7 @@ fn main() {
     tauri::Builder::default()
         .manage(Lan::default())
         .manage(Ext { dir, version: bundle.version, id, vault, server: Mutex::new(server) })
-        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull, vault_publish, ext_info, ext_open_folder, allow_firewall])
+        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull, vault_publish, ext_info, ext_open_folder, allow_firewall, update_check, update_install])
         .run(tauri::generate_context!())
         .expect("error while running K2Pass");
 }

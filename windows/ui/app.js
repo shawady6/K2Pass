@@ -217,6 +217,15 @@ async function openExt() {
   catch { $('ext-status').textContent = 'متاح في تطبيق الويندوز بس.'; }
 }
 $('btn-ext').onclick = openExt;
+async function checkUpdate(manual) {
+  try {
+    if (await invoke('update_check')) {
+      if (confirm('فيه نسخة جديدة من K2Pass. تحدّث دلوقتي؟ (التطبيق هيقفل ويتثبت)')) { toast('بنزّل التحديث...'); await invoke('update_install'); }
+    } else if (manual) toast('إنت على آخر نسخة');
+  } catch (e) { if (manual) toast('مقدرتش أفحص التحديث (النت؟)'); }
+}
+$('upd').onclick = () => checkUpdate(true);
+if (window.__TAURI__) setTimeout(() => checkUpdate(false), 3000);
 $('fw-open').onclick = async () => { try { await invoke('allow_firewall'); toast('تم السماح — الموبايل يقدر يبعت تلقائي'); } catch (e) { toast('اتلغى'); } };
 $('ext-open').onclick = () => invoke('ext_open_folder');
 $('ext-copy').onclick = () => copy($('ext-path').textContent, 'المسار');

@@ -2,6 +2,8 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-10 — Windows 0.4.0 (in-app update: checks on start, downloads the MSI and installs)
+
 ## 2026-11-10 — v1.7.0 + Windows 0.3.0 (auto-sync, edit from PC, MSI)
 - الموبيل: بعد كل حفظ بـ4 ثواني يبعت الخزنة للكمبيوتر المربوط ويسحب النسخة المدموجة ويدمجها (نفس قواعد الـmerge).
 - الويندوز: إضافة/تعديل/حذف حسابات (عنوان، يوزر، باسورد، رابط، ملاحظات، TOTP، مفضّل، فولدر) وتتدمج مع الموبيل بالـmerge.
