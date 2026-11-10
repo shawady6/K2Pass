@@ -10,29 +10,17 @@
   <header>
     <div class="brand"><img src="icons/48.png" alt="" width="28" height="28"><span>K2Pass</span></div>
     <div class="hdr-actions">
-      <button id="btn-sync" class="icon hidden" title="مزامنة من الموبايل"><i data-i="sync"></i></button>
       <button id="btn-lock" class="icon hidden" title="قفل"><i data-i="lock"></i></button>
-      <button id="btn-menu" class="icon hidden" title="المزيد"><i data-i="more"></i></button>
     </div>
   </header>
-  <div id="menu" class="menu hidden">
-    <button id="m-pair"><i data-i="phone" data-s="16"></i>ربط / إعادة ربط الموبايل</button>
-    <button id="m-replace"><i data-i="swap" data-s="16"></i>استبدال ملف الخزنة</button>
-    <button id="m-forget" class="danger"><i data-i="trash" data-s="16"></i>مسح الخزنة من المتصفح</button>
-  </div>
 
   <main>
     <section id="v-import" class="hidden">
       <div class="card hero">
-        <div class="badge"><i data-i="file" data-s="30"></i></div>
-        <h2>افتح خزنتك</h2>
-        <p class="lead">الأسهل: اربط الموبايل وهتتزامن الخزنة تلقائيًا على نفس الواي فاي.</p>
-        <button id="btn-pair" class="primary"><i data-i="phone" data-s="18"></i>ربط الموبايل</button>
-        <div class="or"><span>أو</span></div>
-        <p class="hint">من التطبيق: <b>الإعدادات ← تصدير الخزنة (مشفّر)</b>، وانقل الملف للكمبيوتر واختاره هنا.</p>
-        <label class="ghost"><i data-i="file" data-s="18"></i>اختيار ملف الخزنة<input id="file" type="file" hidden></label>
-        <p class="hint"><i data-i="shield" data-s="14"></i> الملف بيفضل مشفّر. الباسوردات مش بتتفك غير بعد الماستر باسورد.</p>
-        <p id="import-err" class="err"></p>
+        <div class="badge"><i data-i="bolt" data-s="30"></i></div>
+        <h2>افتح تطبيق K2Pass</h2>
+        <p class="lead" id="imp-msg">الإضافة بتاخد الخزنة من تطبيق K2Pass على الكمبيوتر. شغّل التطبيق وافتح الخزنة فيه.</p>
+        <button id="btn-retry" class="primary"><i data-i="sync" data-s="18"></i>جرّب تاني</button>
       </div>
     </section>
 

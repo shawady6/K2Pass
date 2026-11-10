@@ -2,7 +2,6 @@ import { parseVaultFile, unlockVault, readEntries, b64e, b64d } from './lib/vaul
 import { totp } from './lib/totp.js';
 import { matchesHost, isLive, FOLDER_TYPE, folderKey, allUrls } from './lib/match.js';
 import { fillInPage } from './lib/fill.js';
-import { pullVault, discover } from './lib/sync.js';
 import { icon, hydrate } from './lib/icons.js';
 import { desktopInfo, desktopVault } from './lib/desktop.js';
 hydrate();
@@ -17,8 +16,6 @@ let openId = null, otpTimer = null;
 function show(view) {
   for (const v of ['v-import', 'v-unlock', 'v-list']) $(v).classList.toggle('hidden', v !== view);
   $('btn-lock').classList.toggle('hidden', view !== 'v-list');
-  $('btn-sync').classList.toggle('hidden', view === 'v-import');
-  $('btn-menu').classList.toggle('hidden', view === 'v-import');
 }
 function toast(t) {
   const el = $('toast'); el.textContent = t; el.classList.remove('hidden');
@@ -41,14 +38,16 @@ async function init() {
   const info = await desktopInfo(600);
   if (info && info.hasVault) { const t = await desktopVault(); if (t) { try { parseVaultFile(t); await chrome.storage.local.set({ vault: t }); } catch { /* keep what we have */ } } }
   const { vault } = await chrome.storage.local.get('vault');
-  if (!vault) return show('v-import');
+  if (!vault) {
+    $('imp-msg').textContent = info ? 'التطبيق شغّال بس لسه مفيش خزنة. حمّل الخزنة في التطبيق.' : 'الإضافة بتاخد الخزنة من تطبيق K2Pass على الكمبيوتر. شغّل التطبيق وافتح الخزنة فيه.';
+    return show('v-import');
+  }
   vaultFile = parseVaultFile(vault);
   const s = await chrome.storage.session.get(['k', 'until']);
   if (s.k && s.until > Date.now()) {
-    try { await load(b64d(s.k)); syncNow(true); return; } catch { /* fall through to unlock */ }
+    try { await load(b64d(s.k)); return; } catch { /* fall through to unlock */ }
   }
   show('v-unlock'); $('pw').focus();
-  syncNow(true);
 }
 
 async function load(key) {
@@ -158,38 +157,6 @@ async function fill(e) {
   } catch { toast('الصفحة دي مش مسموح الملء فيها'); }
 }
 
-// Pull the latest vault from the paired phone (silent = no error toasts; used automatically when the popup opens).
-let syncing = false;
-async function syncNow(silent) {
-  const { pair } = await chrome.storage.local.get('pair');
-  if (!pair) { if (!silent) { toast('اربط الموبايل الأول'); chrome.tabs.create({ url: chrome.runtime.getURL('sync.html') }); } return; }
-  if (syncing) return; syncing = true;
-  const sb = $('btn-sync'); sb.classList.add('spin');
-  try {
-    let text;
-    try { text = await pullVault(pair, silent ? 1500 : 5000); }
-    catch (e) {
-      if (e.message !== 'offline') throw e;
-      // The phone's IP may have changed (DHCP): look for it again, starting with the same /24.
-      const hit = await discover(pair.secret, { prefer: pair.ip, subnets: [], probeMs: 600 });
-      if (!hit) throw e;
-      text = hit.vault; await chrome.storage.local.set({ pair: hit.pair });
-    }
-    const { vault } = await chrome.storage.local.get('vault');
-    if (text === vault) { if (!silent) toast('الخزنة محدّثة بالفعل'); return; }
-    const f = parseVaultFile(text);
-    await chrome.storage.local.set({ vault: text });
-    vaultFile = f;
-    const s = await chrome.storage.session.get(['k', 'until']);
-    if (s.k && s.until > Date.now()) {
-      try { await load(b64d(s.k)); toast('اتحدّثت الخزنة من الموبايل ✔'); return; } catch { await chrome.storage.session.remove(['k', 'until']); }
-    }
-    show('v-unlock'); toast('في نسخة جديدة. اكتب الماستر باسورد.');
-  } catch (e) {
-    if (!silent) toast(e.message === 'denied' ? 'الموبايل رفض الكود. أعد الربط.' : 'الموبايل مش متاح. شغّل المزامنة في التطبيق (نفس الواي فاي).');
-  } finally { syncing = false; sb.classList.remove('spin'); }
-}
-
 async function doUnlock() {
   $('unlock-err').textContent = '';
   const pw = $('pw').value; if (!pw) return;
@@ -212,25 +179,7 @@ async function lock() {
 $('btn-unlock').onclick = doUnlock;
 $('pw').onkeydown = (e) => { if (e.key === 'Enter') doUnlock(); };
 $('btn-lock').onclick = lock;
-$('btn-sync').onclick = () => syncNow(false);
-$('btn-pair').onclick = $('m-pair').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('sync.html') });
+$('btn-retry').onclick = () => init().catch(() => {});
 $('q').oninput = render; $('folder').onchange = render;
-$('btn-menu').onclick = () => $('menu').classList.toggle('hidden');
-$('m-replace').onclick = () => { $('menu').classList.add('hidden'); chrome.runtime.sendMessage({ type: 'lock-now' }); show('v-import'); };
-$('m-forget').onclick = async () => {
-  if (!confirm('تمسح الخزنة من المتصفح؟ (الملف الأصلي على جهازك مش هيتأثر)')) return;
-  chrome.runtime.sendMessage({ type: 'lock-now' });
-  await chrome.storage.local.remove('vault'); $('menu').classList.add('hidden'); show('v-import');
-};
-$('file').onchange = async (ev) => {
-  const f = ev.target.files[0]; if (!f) return;
-  $('import-err').textContent = '';
-  try {
-    const text = await f.text(); parseVaultFile(text);
-    await chrome.storage.local.set({ vault: text });
-    vaultFile = parseVaultFile(text);
-    show('v-unlock'); $('pw').focus();
-  } catch (e) { $('import-err').textContent = e.message; }
-};
 
 init().catch((e) => { toast('خطأ: ' + e.message); show('v-import'); });

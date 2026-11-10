@@ -9,11 +9,17 @@
 <header>
   <div class="brand"><img src="icons/48.png" alt="" width="28" height="28"><span>K2Pass</span></div>
   <div class="hdr-actions">
-    <button id="btn-ext" class="icon" title="إضافة المتصفح"><i data-i="bolt"></i></button>
     <button id="btn-pair" class="icon hidden" title="مزامنة مع الموبايل"><i data-i="phone"></i></button>
     <button id="btn-lock" class="icon hidden" title="قفل"><i data-i="lock"></i></button>
   </div>
 </header>
+<nav id="nav" class="nav hidden">
+  <button data-go="v-list"><i data-i="key" data-s="16"></i>الخزنة</button>
+  <button data-go="v-gen"><i data-i="sync" data-s="16"></i>المولّد</button>
+  <button data-go="v-health"><i data-i="shield" data-s="16"></i>الصحة</button>
+  <button data-go="v-trash"><i data-i="trash" data-s="16"></i>السلة</button>
+  <button data-go="v-set"><i data-i="more" data-s="16"></i>الإعدادات</button>
+</nav>
 <main>
   <section id="v-import" class="hidden"><div class="card hero">
     <div class="badge"><i data-i="file" data-s="30"></i></div>
@@ -21,6 +27,7 @@
     <p class="lead">هات خزنتك من الموبايل: اربطه (الأسهل) أو اختار ملف تصدير.</p>
     <button id="go-pair" class="primary"><i data-i="phone" data-s="18"></i>ربط الموبايل</button>
     <div class="or"><span>أو</span></div>
+    <button id="go-create" class="ghost"><i data-i="plus" data-s="18"></i>إنشاء خزنة جديدة هنا</button>
     <label class="ghost"><i data-i="file" data-s="18"></i>اختيار ملف الخزنة<input id="file" type="file" hidden></label>
     <p id="import-err" class="err"></p>
   </div></section>
@@ -49,10 +56,13 @@
 
   <section id="v-edit" class="hidden"><div class="card">
     <h2 id="ed-title-h">حساب</h2>
+    <select id="ed-type"></select>
     <input id="ed-title" type="text" placeholder="الاسم (مثلًا Gmail)" autocomplete="off">
     <input id="ed-user" type="text" placeholder="اسم المستخدم / الإيميل" autocomplete="off" dir="ltr">
-    <div class="row2"><input id="ed-pass" type="password" placeholder="الباسورد" autocomplete="off" dir="ltr"><button id="ed-eye" class="ghost" style="flex:0 0 44px" title="إظهار"><i data-i="eye" data-s="16"></i></button><button id="ed-gen" class="ghost" style="flex:0 0 auto">توليد</button></div>
+    <div class="row2" id="ed-passrow"><input id="ed-pass" type="password" placeholder="الباسورد" autocomplete="off" dir="ltr"><button id="ed-eye" class="ghost" style="flex:0 0 44px" title="إظهار"><i data-i="eye" data-s="16"></i></button><button id="ed-gen" class="ghost" style="flex:0 0 auto">توليد</button></div>
     <input id="ed-url" type="text" placeholder="الرابط https://…" autocomplete="off" dir="ltr">
+    <textarea id="ed-urls" rows="2" placeholder="روابط إضافية (رابط في كل سطر)" dir="ltr"></textarea>
+    <div id="ed-extra"></div>
     <input id="ed-totp" type="text" placeholder="سرّ TOTP (اختياري)" autocomplete="off" dir="ltr">
     <select id="ed-folder"></select>
     <textarea id="ed-notes" rows="3" placeholder="ملاحظات"></textarea>
@@ -62,13 +72,73 @@
     <button id="ed-del" class="ghost small danger">نقل للسلة</button>
   </div></section>
 
+
+  <section id="v-create" class="hidden"><div class="card hero">
+    <div class="badge"><i data-i="lock" data-s="30"></i></div>
+    <h2>خزنة جديدة</h2>
+    <p class="lead">اختار ماستر باسورد قوي. مفيش طريقة لاسترجاعه لو نسيته.</p>
+    <input id="cr-pw" type="password" placeholder="الماستر باسورد (10 حروف على الأقل)" autocomplete="off">
+    <input id="cr-pw2" type="password" placeholder="أكّد الماستر باسورد" autocomplete="off">
+    <p id="cr-err" class="err"></p>
+    <button id="cr-go" class="primary">إنشاء</button>
+    <button id="cr-back" class="ghost">رجوع</button>
+  </div></section>
+
+  <section id="v-gen" class="hidden"><div class="card">
+    <h2>مولّد الباسورد</h2>
+    <div class="f"><span class="v" id="g-out" dir="ltr"></span><button id="g-copy" title="نسخ"><i data-i="copy" data-s="16"></i></button><button id="g-new" title="توليد"><i data-i="sync" data-s="16"></i></button></div>
+    <div id="g-str" class="strength"><i></i><i></i><i></i></div>
+    <label class="chk">الطول <input id="g-len" type="range" min="8" max="64" value="20"> <b id="g-lenv">20</b></label>
+    <label class="chk"><input id="g-up" type="checkbox" checked> حروف كبيرة</label>
+    <label class="chk"><input id="g-lo" type="checkbox" checked> حروف صغيرة</label>
+    <label class="chk"><input id="g-di" type="checkbox" checked> أرقام</label>
+    <label class="chk"><input id="g-sy" type="checkbox" checked> رموز</label>
+  </div></section>
+
+  <section id="v-health" class="hidden"><div class="card"><h2>صحة الخزنة</h2><div id="health"></div></div></section>
+
+  <section id="v-trash" class="hidden"><div class="card">
+    <h2>السلة</h2><p class="hint">العناصر بتتمسح نهائيًا بعد 30 يوم.</p>
+    <div id="trash"></div>
+    <button id="trash-empty" class="ghost small danger">تفريغ السلة</button>
+  </div></section>
+
+  <section id="v-set" class="hidden"><div class="card">
+    <h2>الأمان</h2>
+    <p class="hint">القفل التلقائي بعد عدم النشاط</p><div class="chips" id="set-lock"></div>
+    <p class="hint">مسح الحافظة بعد النسخ</p><div class="chips" id="set-clip"></div>
+    <details><summary>تغيير الماستر باسورد</summary>
+      <input id="mp-old" type="password" placeholder="الماستر باسورد الحالي" autocomplete="off">
+      <input id="mp-new" type="password" placeholder="الجديد (10 حروف على الأقل)" autocomplete="off">
+      <input id="mp-new2" type="password" placeholder="أكّد الجديد" autocomplete="off">
+      <p id="mp-err" class="err"></p><button id="mp-go" class="primary">تغيير</button>
+      <p class="hint">بعد التغيير على الكمبيوتر، الموبايل لسه بيفتح بالباسورد القديم لحد ما تغيّره هناك كمان (الخزنة بتتزامن بس مفتاحها بيتغيّر مع آخر نسخة).</p>
+    </details>
+  </div>
+  <div class="card"><h2>الفولدرات</h2><div id="set-folders"></div>
+    <div class="row2"><input id="nf-name" type="text" placeholder="اسم فولدر جديد"><button id="nf-add" class="ghost">إضافة</button></div>
+  </div>
+  <div class="card"><h2>المزامنة والإضافة</h2>
+    <button id="s-pair" class="ghost"><i data-i="phone" data-s="16"></i>ربط / مزامنة الموبايل</button>
+    <button id="fw-open" class="ghost"><i data-i="shield" data-s="16"></i>السماح في الجدار الناري</button>
+    <button id="s-ext" class="ghost"><i data-i="bolt" data-s="16"></i>إضافة المتصفح</button>
+  </div>
+  <div class="card"><h2>نسخ احتياطي</h2>
+    <button id="bk-save" class="ghost"><i data-i="file" data-s="16"></i>حفظ نسخة مشفّرة في المستندات</button>
+    <label class="ghost"><i data-i="swap" data-s="16"></i>استيراد / دمج ملف خزنة<input id="bk-file" type="file" hidden></label>
+    <p class="hint" id="bk-note"></p>
+  </div>
+  <div class="card"><h2>عن التطبيق</h2>
+    <p class="hint" id="app-ver"></p>
+    <button id="upd" class="ghost"><i data-i="refresh" data-s="16"></i>فحص التحديث وتثبيته</button>
+    <button id="forget2" class="ghost small danger">مسح الخزنة من هذا الجهاز</button>
+  </div></section>
+
   <section id="v-ext" class="hidden"><div class="card">
     <h2>إضافة المتصفح</h2>
     <p class="lead">الإضافة بتاخد الخزنة من التطبيق ده مباشرة على نفس الكمبيوتر، وبتتحدّث لوحدها كل ما التطبيق يتحدّث.</p>
     <div class="step"><div class="num">1</div><div><h2>ثبّتها مرة واحدة</h2><p class="hint">في Brave / Chrome / Edge افتح <b>chrome://extensions</b> وفعّل <b>Developer mode</b>، واضغط <b>Load unpacked</b> واختار الفولدر ده:</p></div></div>
     <div class="f"><span class="v" id="ext-path" dir="ltr"></span><button id="ext-copy" title="نسخ"><i data-i="copy" data-s="16"></i></button></div>
-    <button id="upd" class="ghost"><i data-i="refresh" data-s="16"></i>فحص التحديث</button>
-    <button id="fw-open" class="ghost"><i data-i="shield" data-s="16"></i>السماح في الجدار الناري</button>
     <button id="ext-open" class="ghost"><i data-i="folder" data-s="16"></i>فتح الفولدر</button>
     <div class="step"><div class="num">2</div><div><h2>خلاص</h2><p class="hint">بعد كده أي خزنة تتحمّل هنا تظهر في الإضافة لوحدها، وأي تحديث للتطبيق يحدّث الإضافة.</p></div></div>
     <p id="ext-status" class="hint"></p>

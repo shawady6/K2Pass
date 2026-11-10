@@ -62,3 +62,35 @@ export async function writeEntries(file, vaultKey, entries) {
   const data = await aesGcmEncrypt(vaultKey, enc.encode(JSON.stringify({ entries })), aad(file));
   return { ...file, data: b64e(data) };
 }
+
+export const DEFAULT_KDF = { m: 65536, t: 3, p: 2 };   // same as vault-core KdfParams()
+
+async function kekFor(password, salt, f) {
+  const hw = globalThis.hashwasm;
+  if (!hw) throw new Error('argon2 غير محمّل');
+  return hw.argon2id({ password, salt, parallelism: f.p, iterations: f.t, memorySize: f.m, hashLength: 32, outputType: 'binary' });
+}
+
+/** Brand-new vault (mirrors VaultCrypto.create). Returns { file, key }. */
+export async function createVault(password, entries = [], kdf = DEFAULT_KDF) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), key = crypto.getRandomValues(new Uint8Array(32));
+  const f = { v: 1, m: kdf.m, t: kdf.t, p: kdf.p, salt: b64e(salt) };
+  const kek = await kekFor(password, salt, f);
+  try {
+    const wk = await aesGcmEncrypt(kek, key, aad(f));
+    const data = await aesGcmEncrypt(key, enc.encode(JSON.stringify({ entries })), aad(f));
+    return { file: { ...f, wk: b64e(wk), data: b64e(data) }, key };
+  } finally { kek.fill(0); }
+}
+
+/** New salt + new KEK; the vault key and entries stay the same (mirrors VaultCrypto.changeMasterPassword). */
+export async function changeMaster(file, vaultKey, newPassword, entries) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const f = { v: file.v, m: file.m, t: file.t, p: file.p, salt: b64e(salt) };
+  const kek = await kekFor(newPassword, salt, f);
+  try {
+    const wk = await aesGcmEncrypt(kek, vaultKey, aad(f));
+    const data = await aesGcmEncrypt(vaultKey, enc.encode(JSON.stringify({ entries })), aad(f));
+    return { ...f, wk: b64e(wk), data: b64e(data) };
+  } finally { kek.fill(0); }
+}

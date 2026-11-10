@@ -218,6 +218,23 @@ fn update_install(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Writes the (still encrypted) vault file to Documents and shows it in Explorer. Returns the path.
+#[tauri::command]
+fn backup_save(name: String, text: String) -> Result<String, String> {
+    let safe: String = name.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-' || *c == '_').collect();
+    if safe.is_empty() || !safe.ends_with(".json") { return Err("bad name".into()); }
+    let dir = std::env::var("USERPROFILE").map(|p| std::path::PathBuf::from(p).join("Documents")).map_err(|e| e.to_string())?;
+    let path = dir.join(&safe);
+    std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    let _ = std::process::Command::new("explorer").arg(format!("/select,{}", path.display())).spawn();
+    Ok(path.display().to_string())
+}
+
+#[tauri::command]
 fn new_secret() -> String {
     k2_lan::new_secret()
 }
@@ -232,7 +249,7 @@ fn main() {
     tauri::Builder::default()
         .manage(Lan::default())
         .manage(Ext { dir, version: bundle.version, id, vault, server: Mutex::new(server) })
-        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull, vault_publish, ext_info, ext_open_folder, allow_firewall, update_check, update_install])
+        .invoke_handler(tauri::generate_handler![lan_start, lan_stop, new_secret, phone_find, phone_pull, vault_publish, ext_info, ext_open_folder, allow_firewall, update_check, update_install, app_version, backup_save])
         .run(tauri::generate_context!())
         .expect("error while running K2Pass");
 }

@@ -1,32 +1,38 @@
-import { parseVaultFile, unlockVault, readEntries, writeEntries } from './lib/vault.js';
+import { parseVaultFile, unlockVault, readEntries, writeEntries, createVault, changeMaster } from './lib/vault.js';
 import { mergeEntries, editEntry, toJson, norm } from './lib/merge.js';
 import { totp } from './lib/totp.js';
 import { FOLDER_TYPE, folderKey, isLive, allUrls } from './lib/match.js';
 import { icon, hydrate } from './lib/icons.js';
+import { TYPES, typeOf } from './lib/types.js';
+import { analyze, strength } from './lib/health.js';
 
 hydrate();
 const $ = (id) => document.getElementById(id);
 const T = window.__TAURI__ || null;                       // absent when the UI is opened in a plain browser (tests)
 const invoke = (c, a) => (T ? T.core.invoke(c, a) : Promise.reject(new Error('no-tauri')));
-const LOCK_MS = 5 * 60 * 1000;
 const store = {
   get: (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
 };
 
+const settings = { lockMin: 5, clipSec: 20, ...store.get('settings', {}) };
+const saveSettings = () => store.set('settings', settings);
 let lastView = 'v-import', raw = [], editing = null, vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
 
-const VIEWS = ['v-import', 'v-unlock', 'v-list', 'v-pair', 'v-ext', 'v-edit'];
+const VIEWS = ['v-import', 'v-create', 'v-unlock', 'v-list', 'v-gen', 'v-health', 'v-trash', 'v-set', 'v-pair', 'v-ext', 'v-edit'];
+const NAV = ['v-list', 'v-gen', 'v-health', 'v-trash', 'v-set'];
 function show(v) {
   for (const x of VIEWS) $(x).classList.toggle('hidden', x !== v);
-  $('btn-lock').classList.toggle('hidden', v !== 'v-list');
-  $('btn-pair').classList.toggle('hidden', v === 'v-import' || v === 'v-pair');
-  $('btn-ext').classList.toggle('hidden', v === 'v-ext');
+  $('btn-lock').classList.toggle('hidden', !key);
+  $('btn-pair').classList.toggle('hidden', v === 'v-import' || v === 'v-create' || v === 'v-pair');
+  $('nav').classList.toggle('hidden', !key || !NAV.includes(v));
+  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('on', b.dataset.go === v));
   if (v !== 'v-ext') lastView = v;
+  if (v === 'v-gen') gen(); if (v === 'v-health') renderHealth(); if (v === 'v-trash') renderTrash(); if (v === 'v-set') renderSettings();
 }
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 2200); }
-async function copy(text, label) { await navigator.clipboard.writeText(text); toast(`اتنسخ ${label}`); clearTimeout(copy.t); copy.t = setTimeout(() => navigator.clipboard.writeText(' ').catch(() => {}), 20000); }
-function bump() { clearTimeout(idle); if (key) idle = setTimeout(lock, LOCK_MS); }
+async function copy(text, label) { await navigator.clipboard.writeText(text); toast(`اتنسخ ${label}`); clearTimeout(copy.t); if (settings.clipSec) copy.t = setTimeout(() => navigator.clipboard.writeText(' ').catch(() => {}), settings.clipSec * 1000); }
+function bump() { clearTimeout(idle); if (key && settings.lockMin) idle = setTimeout(lock, settings.lockMin * 60000); }
 ['mousemove', 'keydown', 'click'].forEach((e) => addEventListener(e, bump, true));
 
 const publish = (t) => invoke('vault_publish', { text: t }).catch(() => {});
@@ -53,7 +59,8 @@ async function load(k) {
   key = k;
   derive();
   const pend = store.get('pending', null);
-  if (pend) { store.set('pending', null); await mergeIn(pend, true); }
+  if (pend) { store.set('pending', null); if (!(await mergeIn(pend, true))) toast('خزنة الموبايل المعلّقة مختلفة، اتجاهلت'); }
+  await purgeTrash();
   show('v-list'); render(); bump();
 }
 
@@ -73,12 +80,12 @@ async function mergeIn(text, quiet) {
   try { rem = await readEntries(remote, key); } catch { return false; }
   const merged = mergeEntries(raw, rem);
   const same = JSON.stringify(merged) === JSON.stringify(mergeEntries(rem, rem));     // nothing the phone lacks
-  await saveFile(await writeEntries(remote, key, merged), merged, !same);
+  await saveFile(await writeEntries(vaultFile, key, merged), merged, !same);
   if (!quiet) toast(`اتدمجت الخزنة (${entries.length} حساب)`);
   return true;
 }
 
-function lock() { key = null; raw = []; entries = []; folders = []; openId = null; clearInterval(otpTimer); $('list').innerHTML = ''; $('detail').innerHTML = '<p class="empty">اختار حساب من القايمة</p>'; $('q').value = ''; if (vaultFile) { show('v-unlock'); $('pw').focus(); } }
+function lock() { key = null; raw = []; entries = []; folders = []; openId = null; clearInterval(otpTimer); $('list').innerHTML = ''; $('detail').innerHTML = '<p class="empty">اختار عنصر من القايمة</p>'; $('q').value = ''; if (vaultFile) { show('v-unlock'); $('pw').focus(); } }
 
 const subtitle = (e) => e.user || (e.extra && (e.extra.host || e.extra.ssid)) || '';
 const folderName = (e) => (folders.find((x) => folderKey(x) === e.cat) || {}).title || '';
@@ -131,9 +138,24 @@ function detail(e) {
     tick(); otpTimer = setInterval(tick, 1000);
     f.append(mk('span', 'k', 'كود TOTP'), code, left, btn('copy', 'نسخ الكود', () => copy(code.dataset.c || '', 'كود TOTP'))); d.append(f);
   }
-  const secretKeys = new Set(['privkey', 'passphrase', 'cvv', 'number', 'password']);
-  for (const [k, v] of Object.entries(e.extra || {})) { if (k === 'urls' || k === 'voice' || !v) continue; d.append(field(k, v, secretKeys.has(k))); }
+  const t = typeOf(e.type), known = new Map(t.fields.map((x) => [x.key, x]));
+  const secretKeys = new Set(['privkey', 'passphrase', 'cvv', 'number', 'password', 'idnum']);
+  for (const [k, v] of Object.entries(e.extra || {})) { if (k === 'urls' || k === 'voice' || !v) continue; const kf = known.get(k); d.append(field(kf ? kf.label : k, v, kf ? !!kf.secret : secretKeys.has(k))); }
   if (e.notes) d.append(field('ملاحظات', e.notes, false));
+  const rawE = raw.find((x) => x.id === e.id), h = rawE ? norm(rawE).hist : [];
+  if (h.length) {
+    d.append(mk('div', 'hl', `السجل (${h.length})`));
+    for (const v of h) {
+      const r = mk('div', 'mini'); r.append(mk('div', 'grow', `${new Date(v.ts).toLocaleString('ar-EG')}  ·  ${v.user || '—'}`));
+      const cp = btn('copy', 'نسخ باسورد النسخة دي', () => copy(v.pass, 'الباسورد القديم')), rs = mk('button', '', 'استرجاع');
+      rs.onclick = async () => {
+        if (!confirm('ترجّع النسخة دي؟ النسخة الحالية هتتحفظ في السجل.')) return;
+        const out = editEntry(rawE, { title: v.title, user: v.user, pass: v.pass, url: v.url, notes: v.notes, totp: v.totp, type: v.type, extra: v.extra }, Date.now());
+        await commit([...raw.filter((x) => x.id !== out.id), out]); detail(entries.find((x) => x.id === out.id) || out); toast('اتسترجعت');
+      };
+      r.append(cp, rs); d.append(r);
+    }
+  }
 }
 
 async function doUnlock() {
@@ -187,7 +209,8 @@ async function onPushed(text) {
     const f = parseVaultFile(text);
     if (key) {
       if (await mergeIn(text, false)) { msg('وصلت الخزنة من الموبايل واتدمجت ✔', 'ok'); return; }
-      key = null; raw = [];                                  // a different vault: replace it
+      if (!confirm('الخزنة اللي جاية من الموبايل مختلفة عن خزنة الكمبيوتر. تستبدل خزنة الكمبيوتر بيها؟')) { msg('اتلغى الاستبدال.', 'bad'); return; }
+      lock(); store.set('pending', null);                      // a different vault: replace it
     } else if (store.get('dirty', false) && vaultFile) {
       store.set('pending', text);                            // we have local edits: merge after the next unlock
       msg('وصلت الخزنة. هتتدمج مع تعديلاتك أول ما تفتح الخزنة ✔', 'ok'); toast('اكتب الماستر باسورد عشان تتدمج'); show('v-unlock'); $('pw').focus(); return;
@@ -201,12 +224,12 @@ if (T) { T.event.listen('vault-pushed', (ev) => onPushed(ev.payload)); T.event.l
 window.__k2push = onPushed;                                // test hook (plain-browser tests)
 
 $('btn-unlock').onclick = doUnlock; $('pw').onkeydown = (e) => { if (e.key === 'Enter') doUnlock(); };
-$('btn-lock').onclick = lock; $('q').oninput = render; $('folder').onchange = render;
+$('btn-lock').onclick = lock; $('s-pair').onclick = () => openPair(false); $('q').oninput = render; $('folder').onchange = render;
 $('btn-pair').onclick = () => openPair(false); $('go-pair').onclick = () => openPair(true);
 $('use-manual').onclick = manualPull;
 $('new-code').onclick = () => openPair(true);
-$('pair-back').onclick = () => { scanning++; if (key) show('v-list'); else if (vaultFile) show('v-unlock'); else show('v-import'); };
-$('forget').onclick = () => { if (!confirm('تمسح الخزنة من هذا الكمبيوتر؟')) return; store.set('vault', null); localStorage.removeItem('vault'); publish(null); vaultFile = null; show('v-import'); };
+$('pair-back').onclick = () => { scanning++; if (key) show('v-set'); else if (vaultFile) show('v-unlock'); else show('v-import'); };
+$('forget').onclick = $('forget2').onclick = () => { if (!confirm('تمسح الخزنة من هذا الكمبيوتر؟')) return; store.set('vault', null); localStorage.removeItem('vault'); publish(null); lock(); vaultFile = null; show('v-import'); };
 $('file').onchange = async (ev) => {
   const f = ev.target.files[0]; if (!f) return; $('import-err').textContent = '';
   try { const text = await f.text(); vaultFile = parseVaultFile(text); store.set('vault', text); publish(text); show('v-unlock'); $('pw').focus(); } catch (e) { $('import-err').textContent = e.message; }
@@ -216,7 +239,7 @@ async function openExt() {
   try { const i = await invoke('ext_info'); $('ext-path').textContent = i.path; $('ext-status').textContent = i.serving ? `الإضافة المرفقة: ${i.version}. التطبيق جاهز يخدّمها.` : 'تعذّر تشغيل الخدمة المحلية (البورت 8767 مشغول؟).'; }
   catch { $('ext-status').textContent = 'متاح في تطبيق الويندوز بس.'; }
 }
-$('btn-ext').onclick = openExt;
+$('s-ext').onclick = openExt;
 async function checkUpdate(manual) {
   try {
     if (await invoke('update_check')) {
@@ -228,15 +251,41 @@ $('upd').onclick = () => checkUpdate(true);
 $('fw-open').onclick = async () => { try { await invoke('allow_firewall'); toast('تم السماح — الموبايل يقدر يبعت تلقائي'); } catch (e) { toast('اتلغى'); } };
 $('ext-open').onclick = () => invoke('ext_open_folder');
 $('ext-copy').onclick = () => copy($('ext-path').textContent, 'المسار');
-$('ext-back').onclick = () => show(lastView);
+$('ext-back').onclick = () => show(key ? 'v-set' : lastView);
 // ---- add / edit / trash ----
-const rnd = (n = 20) => { const set = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*-_'; const b = crypto.getRandomValues(new Uint32Array(n)); return [...b].map((x) => set[x % set.length]).join(''); };
+const rnd = (n = 20, o = {}) => {
+  const sets = [o.lo !== false && 'abcdefghijkmnpqrstuvwxyz', o.up !== false && 'ABCDEFGHJKLMNPQRSTUVWXYZ', o.di !== false && '23456789', o.sy !== false && '!@#$%^&*-_?'].filter(Boolean);
+  if (!sets.length) sets.push('abcdefghijkmnpqrstuvwxyz');
+  const all = sets.join(''), pick = (set) => set[crypto.getRandomValues(new Uint32Array(1))[0] % set.length];
+  const out = sets.map(pick);                                    // at least one of every chosen class
+  while (out.length < n) out.push(pick(all));
+  for (let i = out.length - 1; i > 0; i--) { const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1); [out[i], out[j]] = [out[j], out[i]]; }
+  return out.join('');
+};
+const blank = { title: '', user: '', pass: '', url: '', notes: '', totp: null, fav: false, cat: 'other', type: 'login', extra: {} };
+function drawExtra(typeId, vals) {
+  const t = typeOf(typeId), box = $('ed-extra'); box.innerHTML = '';
+  for (const f of t.fields) {
+    const el = f.multiline ? document.createElement('textarea') : document.createElement('input');
+    if (f.multiline) el.rows = 3; else el.type = f.secret ? 'password' : 'text';
+    el.placeholder = f.label; el.value = vals[f.key] || ''; el.dataset.k = f.key; el.autocomplete = 'off'; el.dir = 'ltr';
+    box.append(el);
+  }
+  $('ed-user').classList.toggle('hidden', !(t.creds && t.hasUser));
+  $('ed-passrow').classList.toggle('hidden', !t.creds); $('ed-pass').placeholder = t.passLabel;
+  $('ed-url').classList.toggle('hidden', !t.creds); $('ed-urls').classList.toggle('hidden', !t.creds); $('ed-totp').classList.toggle('hidden', !t.creds);
+}
 function openEdit(e) {
   editing = e || null; show('v-edit');
-  $('ed-title-h').textContent = e ? 'تعديل الحساب' : 'حساب جديد';
-  const o = e ? norm(e) : { title: '', user: '', pass: '', url: '', notes: '', totp: null, fav: false, cat: 'other' };
+  $('ed-title-h').textContent = e ? 'تعديل' : 'عنصر جديد';
+  const o = e ? norm(e) : blank;
+  const ts = $('ed-type'); ts.innerHTML = '';
+  TYPES.forEach((t) => { const x = document.createElement('option'); x.value = t.id; x.textContent = t.label; ts.appendChild(x); });
+  ts.value = typeOf(o.type).id === o.type ? o.type : 'login';
+  ts.onchange = () => drawExtra(ts.value, collectExtra());
   $('ed-title').value = o.title; $('ed-user').value = o.user; $('ed-pass').value = o.pass; $('ed-pass').type = 'password';
-  $('ed-url').value = o.url; $('ed-notes').value = o.notes; $('ed-totp').value = o.totp || ''; $('ed-fav').checked = o.fav;
+  $('ed-url').value = o.url; $('ed-urls').value = o.extra.urls || ''; $('ed-notes').value = o.notes; $('ed-totp').value = o.totp || ''; $('ed-fav').checked = o.fav;
+  drawExtra(ts.value, o.extra);
   const f = $('ed-folder'); f.innerHTML = '';
   const add = (v, t) => { const x = document.createElement('option'); x.value = v; x.textContent = t; f.appendChild(x); };
   add('other', 'بدون فولدر'); folders.forEach((x) => add(folderKey(x), x.title));
@@ -244,24 +293,146 @@ function openEdit(e) {
   f.value = o.cat;
   $('ed-del').classList.toggle('hidden', !e); $('ed-err').textContent = ''; $('ed-title').focus();
 }
+const collectExtra = () => { const x = {}; $('ed-extra').querySelectorAll('[data-k]').forEach((el) => { if (el.value.trim()) x[el.dataset.k] = el.value.trim(); }); return x; };
 async function saveEdit() {
   const title = $('ed-title').value.trim();
-  if (!title) { $('ed-err').textContent = 'اكتب اسم للحساب'; return; }
-  const ch = { title, user: $('ed-user').value, pass: $('ed-pass').value, url: $('ed-url').value.trim(), notes: $('ed-notes').value, totp: $('ed-totp').value.trim() || null, fav: $('ed-fav').checked, cat: $('ed-folder').value };
+  if (!title) { $('ed-err').textContent = 'اكتب اسم للعنصر'; return; }
+  const type = $('ed-type').value, t = typeOf(type), extra = collectExtra();
+  const urls = $('ed-urls').value.split('\n').map((x) => x.trim()).filter(Boolean).join('\n');
+  if (t.creds && urls) extra.urls = urls;
+  const ch = { title, user: t.creds && t.hasUser ? $('ed-user').value : '', pass: t.creds ? $('ed-pass').value : '', url: t.creds ? $('ed-url').value.trim() : '',
+    notes: $('ed-notes').value, totp: t.creds ? $('ed-totp').value.trim() || null : null, fav: $('ed-fav').checked, cat: $('ed-folder').value, type, extra };
   const now = Date.now();
-  const out = editing ? editEntry(editing, ch, now) : toJson({ id: crypto.randomUUID(), ...ch, ts: now, del: false, type: 'login', trash: 0, extra: {}, hist: [] });
+  const out = editing ? editEntry(editing, ch, now) : toJson({ id: crypto.randomUUID(), ...ch, ts: now, del: false, trash: 0, hist: [] });
   await commit([...raw.filter((x) => x.id !== out.id), out]);
   openId = out.id; show('v-list'); render(); detail(entries.find((x) => x.id === out.id) || out); toast('اتحفظ ✔');
 }
+const tombstone = (x, now) => toJson({ ...norm(x), user: '', pass: '', notes: '', totp: null, del: true, ts: now, hist: [], extra: {}, trash: 0, fav: false });
 async function trashEdit() {
-  if (!editing || !confirm('تنقل الحساب للسلة؟ (ممكن ترجّعه من الموبايل)')) return;
+  if (!editing || !confirm('تنقل العنصر للسلة؟ (تقدر ترجّعه خلال 30 يوم)')) return;
   const now = Date.now();
   await commit(raw.map((x) => (x.id === editing.id ? toJson({ ...norm(x), trash: now, ts: now }) : x)));
-  openId = null; $('detail').innerHTML = '<p class="empty">اختار حساب من القايمة</p>'; show('v-list'); render(); toast('اتنقل للسلة');
+  openId = null; $('detail').innerHTML = '<p class="empty">اختار عنصر من القايمة</p>'; show('v-list'); render(); toast('اتنقل للسلة');
 }
 $('btn-new').onclick = () => openEdit(null);
 $('ed-save').onclick = saveEdit; $('ed-del').onclick = trashEdit;
 $('ed-cancel').onclick = () => show('v-list');
-$('ed-gen').onclick = () => { $('ed-pass').value = rnd(); $('ed-pass').type = 'text'; };
+$('ed-gen').onclick = () => { $('ed-pass').value = rnd(20); $('ed-pass').type = 'text'; };
 $('ed-eye').onclick = () => { const p = $('ed-pass'); p.type = p.type === 'password' ? 'text' : 'password'; };
+
+// ---- trash ----
+const DAY = 86400000;
+async function purgeTrash() {                                  // trash older than 30 days becomes a tombstone (same as the phone)
+  const now = Date.now(), old = raw.filter((x) => !x.del && x.trash > 0 && now - x.trash > 30 * DAY);
+  if (old.length) await commit(raw.map((x) => (old.includes(x) ? tombstone(x, now) : x)));
+}
+function renderTrash() {
+  const box = $('trash'); box.innerHTML = '';
+  const items = raw.filter((x) => !x.del && x.trash > 0 && x.type !== FOLDER_TYPE).sort((a, b) => b.trash - a.trash);
+  if (!items.length) box.append(mk('p', 'empty', 'السلة فاضية'));
+  for (const x of items) {
+    const r = mk('div', 'mini'), left = Math.max(0, 30 - Math.floor((Date.now() - x.trash) / DAY));
+    const g = mk('div', 'grow', `${x.title}  ·  فاضل ${left} يوم`);
+    const rs = mk('button', '', 'استرجاع'), del = mk('button', '', 'حذف نهائي'); del.classList.add('danger');
+    rs.onclick = async () => { await commit(raw.map((y) => (y.id === x.id ? toJson({ ...norm(y), trash: 0, ts: Date.now() }) : y))); renderTrash(); toast('اتسترجع'); };
+    del.onclick = async () => { if (!confirm('حذف نهائي؟ مش هترجع تاني.')) return; await commit(raw.map((y) => (y.id === x.id ? tombstone(y, Date.now()) : y))); renderTrash(); };
+    r.append(g, rs, del); box.append(r);
+  }
+  $('trash-empty').classList.toggle('hidden', !items.length);
+}
+$('trash-empty').onclick = async () => {
+  if (!confirm('تفضّي السلة نهائيًا؟')) return;
+  const now = Date.now(); await commit(raw.map((y) => (!y.del && y.trash > 0 && y.type !== FOLDER_TYPE ? tombstone(y, now) : y))); renderTrash();
+};
+
+// ---- password generator ----
+function gen() {
+  const o = { up: $('g-up').checked, lo: $('g-lo').checked, di: $('g-di').checked, sy: $('g-sy').checked }, n = +$('g-len').value;
+  const p = rnd(n, o); $('g-out').textContent = p; $('g-lenv').textContent = n; $('g-str').dataset.s = strength(p);
+}
+['g-len', 'g-up', 'g-lo', 'g-di', 'g-sy'].forEach((i) => ($(i).oninput = gen));
+$('g-new').onclick = gen; $('g-copy').onclick = () => copy($('g-out').textContent, 'الباسورد');
+
+// ---- health ----
+function renderHealth() {
+  const r = analyze(entries), box = $('health'); box.innerHTML = '';
+  box.append(mk('p', 'hint', `فُحص ${r.total} عنصر. الباسوردات مش بتخرج من الجهاز.`));
+  const group = (title, list) => {
+    box.append(mk('div', 'hl', `${title} (${list.length})`));
+    if (!list.length) box.append(mk('p', 'hint', 'لا يوجد'));
+    for (const e of list) { const row = mk('div', 'mini'); row.append(mk('div', 'grow', `${e.title}${e.user ? ' · ' + e.user : ''}`)); const b = mk('button', '', 'فتح'); b.onclick = () => { openId = e.id; show('v-list'); render(); detail(e); }; row.append(b); box.append(row); }
+  };
+  group('باسوردات ضعيفة', r.weak); group('باسوردات مكررة', r.reused.flat()); group('باسوردات قديمة (+ سنة)', r.old);
+}
+
+// ---- settings ----
+function chips(id, opts, cur, set) {
+  const box = $(id); box.innerHTML = '';
+  for (const [v, label] of opts) { const b = mk('button', cur === v ? 'on' : '', label); b.onclick = () => { set(v); saveSettings(); bump(); chips(id, opts, v, set); }; box.append(b); }
+}
+async function renderSettings() {
+  chips('set-lock', [[1, 'دقيقة'], [5, '5 دقايق'], [15, '15 دقيقة'], [60, 'ساعة'], [0, 'أبدًا']], settings.lockMin, (v) => (settings.lockMin = v));
+  chips('set-clip', [[10, '10 ث'], [20, '20 ث'], [30, '30 ث'], [60, '60 ث'], [0, 'مفيش']], settings.clipSec, (v) => (settings.clipSec = v));
+  const box = $('set-folders'); box.innerHTML = '';
+  if (!folders.length) box.append(mk('p', 'hint', 'مفيش فولدرات'));
+  for (const f of [...folders].sort((a, b) => a.title.localeCompare(b.title))) {
+    const r = mk('div', 'mini'), n = entries.filter((e) => e.cat === folderKey(f)).length;
+    const ren = mk('button', '', 'تسمية'), del = mk('button', '', 'حذف'); del.classList.add('danger');
+    ren.onclick = async () => { const t = prompt('الاسم الجديد', f.title); if (!t || !t.trim()) return; await commit(raw.map((x) => (x.id === f.id ? toJson({ ...norm(x), title: t.trim(), ts: Date.now() }) : x))); renderSettings(); };
+    del.onclick = async () => {
+      if (!confirm(`تحذف الفولدر «${f.title}»؟ العناصر اللي جواه هتفضل بدون فولدر.`)) return;
+      const now = Date.now(), k = folderKey(f);
+      await commit(raw.map((x) => (x.id === f.id ? tombstone(x, now) : x.cat === k && !x.del ? toJson({ ...norm(x), cat: 'other', ts: now }) : x))); renderSettings();
+    };
+    r.append(mk('div', 'grow', `${f.title}  ·  ${n}`), ren, del); box.append(r);
+  }
+  const last = store.get('lastBackup', 0);
+  $('bk-note').textContent = last ? 'آخر نسخة احتياطية: ' + new Date(last).toLocaleString('ar-EG') : 'لسه ما عملتش نسخة احتياطية من الكمبيوتر.';
+  try { $('app-ver').textContent = 'K2Pass للكمبيوتر ' + (await invoke('app_version')); } catch { $('app-ver').textContent = 'K2Pass للكمبيوتر'; }
+}
+$('nf-add').onclick = async () => {
+  const name = $('nf-name').value.trim(); if (!name) return;
+  await commit([...raw, toJson({ id: crypto.randomUUID(), title: name, user: '', pass: '', url: '', notes: '', totp: null, ts: Date.now(), del: false, cat: 'other', type: FOLDER_TYPE, fav: false, trash: 0, extra: {}, hist: [] })]);
+  $('nf-name').value = ''; renderSettings();
+};
+$('mp-go').onclick = async () => {
+  const o = $('mp-old').value, n = $('mp-new').value, n2 = $('mp-new2').value, err = $('mp-err'); err.textContent = '';
+  if (n.length < 10) { err.textContent = 'الجديد لازم 10 حروف على الأقل'; return; }
+  if (n !== n2) { err.textContent = 'التأكيد مش مطابق'; return; }
+  const b = $('mp-go'); b.disabled = true; b.textContent = 'بغيّر…';
+  try {
+    await unlockVault(vaultFile, o);
+    const nf = await changeMaster(vaultFile, key, n, raw);
+    await saveFile(nf, raw, true);
+    ['mp-old', 'mp-new', 'mp-new2'].forEach((i) => ($(i).value = '')); toast('اتغيّر الماستر باسورد ✔');
+  } catch (e) { err.textContent = e.message === 'wrong' ? 'الباسورد الحالي غلط' : e.message; }
+  finally { b.disabled = false; b.textContent = 'تغيير'; }
+};
+$('bk-save').onclick = async () => {
+  try {
+    const name = 'K2Pass-backup-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json';
+    const path = await invoke('backup_save', { name, text: JSON.stringify(vaultFile) });
+    store.set('lastBackup', Date.now()); renderSettings(); toast('اتحفظت: ' + path);
+  } catch (e) { toast('تعذّر الحفظ: ' + e); }
+};
+$('bk-file').onchange = async (ev) => {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  try { const text = await f.text(); parseVaultFile(text); await onPushed(text); } catch (e) { toast(e.message); }
+};
+
+// ---- navigation, creating a vault ----
+document.querySelectorAll('#nav button').forEach((b) => (b.onclick = () => show(b.dataset.go)));
+$('go-create').onclick = () => { $('cr-pw').value = $('cr-pw2').value = ''; $('cr-err').textContent = ''; show('v-create'); $('cr-pw').focus(); };
+$('cr-back').onclick = () => show('v-import');
+$('cr-go').onclick = async () => {
+  const p = $('cr-pw').value, e = $('cr-err'); e.textContent = '';
+  if (p.length < 10) { e.textContent = 'الماستر باسورد لازم 10 حروف على الأقل'; return; }
+  if (p !== $('cr-pw2').value) { e.textContent = 'التأكيد مش مطابق'; return; }
+  const b = $('cr-go'); b.disabled = true; b.textContent = 'بجهّز…';
+  try {
+    const { file, key: k } = await createVault(p, []);
+    vaultFile = file; store.set('vault', JSON.stringify(file)); store.set('dirty', true); publish(JSON.stringify(file));
+    $('cr-pw').value = $('cr-pw2').value = ''; await load(k);
+  } catch (x) { e.textContent = String(x.message || x); } finally { b.disabled = false; b.textContent = 'إنشاء'; }
+};
 start();

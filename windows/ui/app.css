@@ -19,3 +19,16 @@ textarea:focus{border-color:var(--pri)}
 .chk{display:flex;align-items:center;gap:8px;color:var(--mut)}
 .dh{display:flex;align-items:center;justify-content:space-between}.dh button{background:none;border:0;color:var(--pri);width:34px;height:34px;border-radius:11px}.dh button:hover{background:var(--card2)}
 button.danger{color:var(--err)}
+
+.nav{display:flex;gap:6px;padding:8px 18px;max-width:1100px;margin:0 auto;overflow-x:auto}
+.nav button{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:8px 14px;display:inline-flex;gap:7px;align-items:center;color:var(--mut)}
+.nav button.on{color:var(--txt);border-color:var(--pri);background:var(--card2)}
+#v-gen .card,#v-health .card,#v-trash .card,#v-set .card,#v-create .card{max-width:560px;margin:14px auto}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips button{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 12px}.chips button.on{border-color:var(--pri);color:var(--pri)}
+input[type=range]{flex:1;accent-color:var(--pri)}
+.strength{display:flex;gap:4px}.strength i{flex:1;height:5px;border-radius:3px;background:var(--line)}.strength[data-s="1"] i:nth-child(-n+1){background:var(--err)}.strength[data-s="2"] i:nth-child(-n+2){background:#f5c34b}.strength[data-s="3"] i{background:var(--ok)}
+.hl{margin-top:8px;font-weight:700;color:var(--pri)}
+.mini{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.mini .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mini button{background:none;border:0;color:var(--pri);padding:4px 8px;border-radius:9px}.mini button:hover{background:var(--card2)}
+#v-set details summary{cursor:pointer;color:var(--pri)} #v-set details input{margin-top:8px}
+#ed-extra textarea,#ed-extra input{margin-bottom:8px}

@@ -2,6 +2,12 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-10 — Windows 0.5.0 + Extension 0.8.0 (the PC app is the hub)
+- الإضافة بتتكلم مع تطبيق الويندوز بس (اتشال الربط بالموبايل/QR/الاكتشاف منها).
+- الويندوز: إنشاء خزنة جديدة، كل أنواع العناصر بحقولها، فولدرات، سلة (استرجاع/حذف نهائي، 30 يوم)، سجل مع استرجاع، مولّد باسورد، صحة الخزنة.
+- الإعدادات: قفل تلقائي، مسح الحافظة، تغيير الماستر باسورد، نسخة احتياطية، استيراد/دمج ملف.
+- الفحص عن التحديث بزرار بس (مفيش فحص تلقائي).
+
 ## 2026-11-10 — Windows 0.4.0 (in-app update: checks on start, downloads the MSI and installs)
 
 ## 2026-11-10 — v1.7.0 + Windows 0.3.0 (auto-sync, edit from PC, MSI)
