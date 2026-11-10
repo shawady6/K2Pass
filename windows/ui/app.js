@@ -225,7 +225,6 @@ async function checkUpdate(manual) {
   } catch (e) { if (manual) toast('مقدرتش أفحص التحديث (النت؟)'); }
 }
 $('upd').onclick = () => checkUpdate(true);
-if (window.__TAURI__) setTimeout(() => checkUpdate(false), 3000);
 $('fw-open').onclick = async () => { try { await invoke('allow_firewall'); toast('تم السماح — الموبايل يقدر يبعت تلقائي'); } catch (e) { toast('اتلغى'); } };
 $('ext-open').onclick = () => invoke('ext_open_folder');
 $('ext-copy').onclick = () => copy($('ext-path').textContent, 'المسار');
