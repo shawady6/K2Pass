@@ -764,7 +764,7 @@ class MainActivity : FragmentActivity() {
                         item {
                             Box(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                                    .background(Brush.linearGradient(listOf(Color(0xFF4A3FB5), Color(0xFF1E6FA0))))
+                                    .background(K2Colors.HeroBrush)
                                     .clickable { screen = Screen.Health }.padding(14.dp),
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -908,7 +908,7 @@ class MainActivity : FragmentActivity() {
                         Icon(
                             if (e.favorite) K2Icons.Star else K2Icons.StarOutline,
                             contentDescription = "مفضل",
-                            tint = if (e.favorite) Color(0xFFFFC76B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (e.favorite) K2Colors.Fav else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(22.dp),
                         )
                     }
@@ -1054,7 +1054,7 @@ class MainActivity : FragmentActivity() {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp),
             shape = RoundedCornerShape(30.dp),
-            color = Color(0xFF161D3A).copy(alpha = 0.96f),
+            color = K2Colors.NavBar.copy(alpha = 0.96f),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
             shadowElevation = 12.dp,
         ) {
@@ -1065,7 +1065,7 @@ class MainActivity : FragmentActivity() {
                     Box(
                         Modifier.size(56.dp).clip(CircleShape).background(BrandBrush).clickable { addDialog = true },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(K2Icons.Add, contentDescription = "إضافة", tint = Color(0xFF0E1330), modifier = Modifier.size(30.dp)) }
+                    ) { Icon(K2Icons.Add, contentDescription = "إضافة", tint = K2Colors.OnPrimary, modifier = Modifier.size(30.dp)) }
                 }
                 TabItem(Tab.Tools, K2Icons.Tools, "الأدوات")
                 TabItem(Tab.Settings, K2Icons.Settings, "الإعدادات")

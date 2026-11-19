@@ -361,10 +361,10 @@ private fun HistoryRow(h: Entry, onRestore: (Entry) -> Unit) {
 private fun StrengthBar(p: String) {
     val lvl = Health.strength(p)
     val (label, color) = when (lvl) {
-        0 -> "ضعيف جدًا" to androidx.compose.ui.graphics.Color(0xFFFF6B6B)
-        1 -> "ضعيف" to androidx.compose.ui.graphics.Color(0xFFFFA94D)
-        2 -> "كويس" to androidx.compose.ui.graphics.Color(0xFF8CE99A)
-        else -> "قوي" to androidx.compose.ui.graphics.Color(0xFF51CF66)
+        0 -> "ضعيف جدًا" to K2Colors.Weak
+        1 -> "ضعيف" to K2Colors.Fair
+        2 -> "كويس" to K2Colors.Good
+        else -> "قوي" to K2Colors.Strong
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         for (i in 0..3) {

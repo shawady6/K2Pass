@@ -51,6 +51,18 @@ val BrandCyan = Color(0xFF4FD1FF)
 val BrandBrush = Brush.linearGradient(listOf(BrandViolet, BrandCyan))
 private val Ink = Color(0xFF0E1330)
 
+/** Semantic colours shared with the Windows app and the extension (same hex values in their CSS tokens). */
+object K2Colors {
+    val Weak = Color(0xFFFF727F)
+    val Fair = Color(0xFFFFA94D)
+    val Good = Color(0xFF8CE99A)
+    val Strong = Color(0xFF51CF66)
+    val Fav = Color(0xFFFFC76B)
+    val OnPrimary = Ink
+    val NavBar = Color(0xFF161D3A)
+    val HeroBrush = Brush.linearGradient(listOf(Color(0xFF4A3FB5), Color(0xFF1E6FA0)))
+}
+
 private val DarkScheme = darkColorScheme(
     primary = Color(0xFFA99BFF),
     onPrimary = Ink,

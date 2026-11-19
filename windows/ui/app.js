@@ -17,7 +17,7 @@ const store = {
 
 const settings = { lockMin: 5, clipSec: 20, ...store.get('settings', {}) };
 const saveSettings = () => store.set('settings', settings);
-let newFolders = [], lastView = 'v-import', raw = [], editing = null, vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
+let typeChip = '', newFolders = [], lastView = 'v-import', raw = [], editing = null, vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
 
 const VIEWS = ['v-import', 'v-create', 'v-unlock', 'v-list', 'v-gen', 'v-health', 'v-trash', 'v-set', 'v-pair', 'v-ext', 'v-edit'];
 const NAV = ['v-list', 'v-gen', 'v-health', 'v-trash', 'v-set'];
@@ -100,7 +100,16 @@ function btn(ic, title, fn) { const b = mk('button'); b.append(icon(ic, 16)); b.
 
 function render() {
   const q = $('q').value.trim(), f = $('folder').value;
-  const list = entries.filter((e) => (!f || (f === 'fav' ? e.fav : e.cat === f)) && (!q || matchQ(e, q)))
+  const base = entries.filter((e) => (!f || (f === 'fav' ? e.fav : e.cat === f)) && (!q || matchQ(e, q)));
+  const counts = new Map(); base.forEach((e) => counts.set(e.type, (counts.get(e.type) || 0) + 1));
+  if (typeChip && !counts.has(typeChip)) typeChip = '';
+  const cb = $('chips'); cb.innerHTML = ''; cb.classList.toggle('hidden', counts.size < 2);
+  if (counts.size > 1) {
+    const chip = (label, t) => { const b = mk('button', 'chip' + (typeChip === t ? ' on' : ''), label); b.onclick = () => { typeChip = t; render(); }; cb.append(b); };
+    chip(`الكل (${base.length})`, '');
+    [...counts].sort((a, b) => b[1] - a[1]).forEach(([t, n]) => chip(`${typeOf(t).label.split(' (')[0]} (${n})`, t));
+  }
+  const list = base.filter((e) => !typeChip || e.type === typeChip)
     .sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || a.title.localeCompare(b.title));
   const box = $('list'); box.innerHTML = '';
   for (const e of list) {
@@ -224,7 +233,7 @@ if (T) { T.event.listen('vault-pushed', (ev) => onPushed(ev.payload)); T.event.l
 window.__k2push = onPushed;                                // test hook (plain-browser tests)
 
 $('btn-unlock').onclick = doUnlock; $('pw').onkeydown = (e) => { if (e.key === 'Enter') doUnlock(); };
-$('btn-lock').onclick = lock; $('s-pair').onclick = () => openPair(false); $('q').oninput = render; $('folder').onchange = render;
+$('btn-lock').onclick = lock; $('s-pair').onclick = () => openPair(false); $('q').oninput = render; $('folder').onchange = () => { typeChip = ''; render(); };
 $('btn-pair').onclick = () => openPair(false); $('go-pair').onclick = () => openPair(true);
 $('use-manual').onclick = manualPull;
 $('new-code').onclick = () => openPair(true);
