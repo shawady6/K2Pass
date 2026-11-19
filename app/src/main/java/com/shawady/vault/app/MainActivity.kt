@@ -609,7 +609,12 @@ class MainActivity : FragmentActivity() {
                 e.extra.any { (k, v) -> k !in secretKeys && k != URLS_KEY && v.contains(q, true) }
         }
         val listMode = searching || vaultFilter != ""
-        val shown = if (!listMode) emptyList() else pool.filter { (searching || inTrash || inSection(it)) && (!searching || matchQ(it)) }
+        var typeChip by remember(vaultFilter) { mutableStateOf("") }   // type chip inside a folder / all / favourites
+        val chipsOn = listMode && !searching && !inTrash && (vaultFilter == "all" || vaultFilter == "fav" || vaultFilter.startsWith(Folders.PREFIX))
+        val sectionItems = if (!listMode) emptyList() else pool.filter { (searching || inTrash || inSection(it)) && (!searching || matchQ(it)) }
+        val chipTypes = if (chipsOn) sectionItems.groupingBy { it.type }.eachCount() else emptyMap()
+        if (typeChip.isNotEmpty() && typeChip !in chipTypes) typeChip = ""
+        val shown = sectionItems.filter { typeChip.isEmpty() || it.type == typeChip }
             .sortedWith(compareByDescending<Entry> { !inTrash && it.favorite }.then(sortCmp()))
         val noFolder = active.filter { Folders.nameOf(it.category, folders) == null }
             .sortedWith(compareByDescending<Entry> { it.favorite }.then(sortCmp()))
@@ -720,6 +725,14 @@ class MainActivity : FragmentActivity() {
                             "العناصر هنا بتتمسح نهائيًا بعد 30 يوم. اضغط على عنصر للاسترجاع أو الحذف.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+                if (chipsOn && chipTypes.size > 1) item {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = typeChip.isEmpty(), onClick = { typeChip = "" }, label = { Text("الكل (${sectionItems.size})") })
+                        for ((t, n) in chipTypes.entries.sortedByDescending { it.value }) {
+                            FilterChip(selected = typeChip == t, onClick = { typeChip = t }, label = { Text("${EntryTypes.of(t).short} ($n)") })
+                        }
                     }
                 }
                 if (listMode && shown.size > 1) item { Row { Spacer(Modifier.weight(1f)); SortButton() } }
