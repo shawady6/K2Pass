@@ -1,8 +1,8 @@
 package com.shawady.vault.core
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 
 class WifiQrTest {
     @Test fun parsesTheCommonForms() {
