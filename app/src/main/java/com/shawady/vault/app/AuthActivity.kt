@@ -1,5 +1,6 @@
 package com.shawady.vault.app
 
+import androidx.activity.enableEdgeToEdge
 import android.content.Intent
 import android.os.Bundle
 import android.service.autofill.Dataset
@@ -69,7 +70,7 @@ class AuthActivity : FragmentActivity() {
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         // Status bar (clock, battery, camera cut-out) and nav bar take the app's own colour: draw edge-to-edge with light icons.
-        androidx.activity.enableEdgeToEdge(
+        enableEdgeToEdge(
             statusBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
