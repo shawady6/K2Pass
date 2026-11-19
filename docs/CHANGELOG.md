@@ -2,6 +2,9 @@
 
 Derived from the Git history (`git log`). Dates are commit dates. Pre-release debug builds only; no signed releases exist.
 
+## 2026-11-19 — v1.7.2 + Windows 0.5.1
+- «➕ فولدر جديد» في كل مكان فيه اختيار فولدر (محرر الموبايل + محرر ويندوز).
+
 ## 2026-11-19 — v1.7.1
 - الموبايل: «➕ فولدر جديد» من جوه شاشة حفظ الحساب (الملء التلقائي) — بيتنشئ ويتختار ويتحفظ مع الحساب.
 

@@ -280,9 +280,14 @@ class MainActivity : FragmentActivity() {
     private fun readText(uri: Uri): String =
         contentResolver.openInputStream(uri)!!.use { String(it.readBytes(), Charsets.UTF_8) }
 
+    /** Folders created from the folder picker inside the editor; stored only if the saved entry uses one. */
+    private val editFolders = mutableListOf<Entry>()
+
     private fun saveEntry(e: Entry) {
         val d = Session.data ?: return
-        Session.persist(store, VaultData(d.entries.filter { it.id != e.id } + e))
+        val add = editFolders.filter { Folders.catOf(it) == e.category }
+        editFolders.clear()
+        Session.persist(store, VaultData(d.entries.filter { it.id != e.id } + add + e))
         refreshEntries()
         screen = Screen.Vault
     }
@@ -442,8 +447,9 @@ class MainActivity : FragmentActivity() {
                         prefill = s.prefill,
                         initialType = s.newType,
                         onSave = { saveEntry(it) },
-                        onCancel = { screen = if (s.entry != null) Screen.View(s.entry) else Screen.Vault },
+                        onCancel = { editFolders.clear(); screen = if (s.entry != null) Screen.View(s.entry) else Screen.Vault },
                         onDelete = s.entry?.let { e -> { trashEntry(e) } },
+                        newFolders = editFolders,
                     )
                     is Screen.View -> EntryView(
                         e = s.entry,

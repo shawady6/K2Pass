@@ -17,7 +17,7 @@ const store = {
 
 const settings = { lockMin: 5, clipSec: 20, ...store.get('settings', {}) };
 const saveSettings = () => store.set('settings', settings);
-let lastView = 'v-import', raw = [], editing = null, vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
+let newFolders = [], lastView = 'v-import', raw = [], editing = null, vaultFile = null, key = null, entries = [], folders = [], openId = null, otpTimer = null, idle = null;
 
 const VIEWS = ['v-import', 'v-create', 'v-unlock', 'v-list', 'v-gen', 'v-health', 'v-trash', 'v-set', 'v-pair', 'v-ext', 'v-edit'];
 const NAV = ['v-list', 'v-gen', 'v-health', 'v-trash', 'v-set'];
@@ -288,9 +288,20 @@ function openEdit(e) {
   drawExtra(ts.value, o.extra);
   const f = $('ed-folder'); f.innerHTML = '';
   const add = (v, t) => { const x = document.createElement('option'); x.value = v; x.textContent = t; f.appendChild(x); };
+  newFolders = [];
   add('other', 'بدون فولدر'); folders.forEach((x) => add(folderKey(x), x.title));
   if (![...f.options].some((x) => x.value === o.cat)) add(o.cat, o.cat);
-  f.value = o.cat;
+  add('__new', '➕ فولدر جديد…');
+  f.value = o.cat; f.dataset.prev = o.cat;
+  f.onchange = () => {
+    if (f.value !== '__new') { f.dataset.prev = f.value; return; }
+    const name = (prompt('اسم الفولدر الجديد') || '').trim();
+    if (!name) { f.value = f.dataset.prev; return; }
+    const nf = toJson({ id: crypto.randomUUID(), title: name, user: '', pass: '', url: '', notes: '', totp: null, ts: Date.now(), del: false, cat: 'other', type: FOLDER_TYPE, fav: false, trash: 0, extra: {}, hist: [] });
+    newFolders.push(nf);
+    const x = document.createElement('option'); x.value = folderKey(nf); x.textContent = name; f.insertBefore(x, f.querySelector('[value=__new]'));
+    f.value = x.value; f.dataset.prev = x.value;
+  };
   $('ed-del').classList.toggle('hidden', !e); $('ed-err').textContent = ''; $('ed-title').focus();
 }
 const collectExtra = () => { const x = {}; $('ed-extra').querySelectorAll('[data-k]').forEach((el) => { if (el.value.trim()) x[el.dataset.k] = el.value.trim(); }); return x; };
@@ -304,7 +315,8 @@ async function saveEdit() {
     notes: $('ed-notes').value, totp: t.creds ? $('ed-totp').value.trim() || null : null, fav: $('ed-fav').checked, cat: $('ed-folder').value, type, extra };
   const now = Date.now();
   const out = editing ? editEntry(editing, ch, now) : toJson({ id: crypto.randomUUID(), ...ch, ts: now, del: false, trash: 0, hist: [] });
-  await commit([...raw.filter((x) => x.id !== out.id), out]);
+  const addF = newFolders.filter((nf) => folderKey(nf) === ch.cat); newFolders = [];
+  await commit([...raw.filter((x) => x.id !== out.id), ...addF, out]);
   openId = out.id; show('v-list'); render(); detail(entries.find((x) => x.id === out.id) || out); toast('اتحفظ ✔');
 }
 const tombstone = (x, now) => toJson({ ...norm(x), user: '', pass: '', notes: '', totp: null, del: true, ts: now, hist: [], extra: {}, trash: 0, fav: false });
