@@ -98,6 +98,13 @@ fun EntryEditor(
             else android.widget.Toast.makeText(ctx, "الـ QR ده مش مفتاح تحقق صالح", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
+    val wifiScan = androidx.activity.compose.rememberLauncherForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { r ->
+        val n = r.contents?.let { com.shawady.vault.core.WifiQr.parse(it) }
+        if (r.contents != null) {
+            if (n == null) android.widget.Toast.makeText(ctx, "الـ QR ده مش بتاع شبكة واي فاي", android.widget.Toast.LENGTH_SHORT).show()
+            else { extra["ssid"] = n.ssid; extra["security"] = n.security; password = n.password; if (title.isBlank()) title = n.ssid }
+        }
+    }
     // Unsaved-changes guard: compare against the values the screen started with.
     fun snap() = listOf(title, username, password, url, notes, totp, cat, fav.toString(), type, extra.toSortedMap().toString()).joinToString("\u0001")
     val initialSnap = remember { snap() }
@@ -188,6 +195,14 @@ fun EntryEditor(
         }
 
         if (!info.isIt) for (f in info.fields) ExtraField(f, extra, shown)
+        if (type == "wifi") OutlinedButton(onClick = {
+            wifiScan.launch(
+                com.journeyapps.barcodescanner.ScanOptions()
+                    .setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+                    .setPrompt("وجّه الكاميرا على QR بتاع الواي فاي")
+                    .setBeepEnabled(false).setOrientationLocked(false),
+            )
+        }) { Text("📷 مسح QR الشبكة") }
 
         OutlinedTextField(
             colors = k2FieldColors(),

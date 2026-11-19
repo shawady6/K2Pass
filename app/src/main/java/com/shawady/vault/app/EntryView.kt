@@ -64,6 +64,11 @@ fun EntryView(e: Entry, folderName: String?, onEdit: () -> Unit, onClone: () -> 
             OutlinedButton(onClick = onClone, modifier = Modifier.weight(1f)) { Text("📄 نسخ العنصر") }
         }
 
+        if (e.type == "wifi") Button(
+            onClick = { WifiConnect.connect(ctx, e.extra["ssid"].orEmpty().ifBlank { e.title }, e.password, e.extra["security"].orEmpty()) },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("📶 اتصل بالشبكة") }
+
         if (info.creds) {
             if (info.hasUser && e.username.isNotBlank()) ViewRow("اسم المستخدم / الإيميل", e.username, false, "username")
             if (e.password.isNotEmpty()) ViewRow(info.passLabel, e.password, true, "password")
