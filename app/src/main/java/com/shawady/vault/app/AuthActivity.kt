@@ -61,6 +61,9 @@ class AuthActivity : FragmentActivity() {
     private var userText: String? = null
     private var registration = false
     private var saveMode = false
+    private val newFolders = mutableListOf<Entry>()
+    /** Folders created in the editor are stored only when the saved entry actually uses one. */
+    private fun withFolders(u: Unlocked, e: Entry) = u.data.entries + newFolders.filter { Folders.catOf(it) == e.category } + e
     private var savePass = ""
 
     @Suppress("DEPRECATION")
@@ -123,6 +126,7 @@ class AuthActivity : FragmentActivity() {
                             saveLabel = if (saveMode) "حفظ" else "حفظ وتعبئة",
                             onSave = { e -> if (saveMode) saveOnly(u, e) else saveAndFill(u, e) },
                             onCancel = { cancel() },
+                            newFolders = newFolders,
                         )
                     }
                 }
@@ -242,7 +246,7 @@ class AuthActivity : FragmentActivity() {
     }
 
     private fun saveOnly(u: Unlocked, entry: Entry) {
-        if (persist(u, VaultData(u.data.entries + entry))) {
+        if (persist(u, VaultData(withFolders(u, entry)))) {
             Toast.makeText(this, "اتحفظ في K2Pass", Toast.LENGTH_SHORT).show()
             setResult(RESULT_OK)
             finish()
@@ -252,7 +256,7 @@ class AuthActivity : FragmentActivity() {
     }
 
     private fun saveAndFill(u: Unlocked, entry: Entry) {
-        if (persist(u, VaultData(u.data.entries + entry))) respond(listOf(entry)) else cancel()
+        if (persist(u, VaultData(withFolders(u, entry)))) respond(listOf(entry)) else cancel()
     }
 
     private fun buildPrefill(): Entry {

@@ -65,6 +65,7 @@ fun EntryEditor(
     onSave: (Entry) -> Unit,
     onCancel: () -> Unit,
     onDelete: (() -> Unit)? = null,
+    newFolders: MutableList<Entry>? = null,
 ) {
     val ctx = LocalContext.current
     val base = orig ?: prefill
@@ -134,7 +135,7 @@ fun EntryEditor(
         }
 
         Text("الفولدر", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        FolderPicker(selected = cat, onSelect = { cat = it })
+        FolderPicker(selected = cat, onSelect = { cat = it }, newFolders = newFolders)
 
         if (info.isIt) for (f in info.fields) ExtraField(f, extra, shown)
 

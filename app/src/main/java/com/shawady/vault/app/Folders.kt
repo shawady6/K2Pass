@@ -40,9 +40,12 @@ object Folders {
 
 /** Folder picker used in the editor: one button, dialog with the list. */
 @Composable
-fun FolderPicker(selected: String, onSelect: (String) -> Unit) {
-    val folders = Folders.list(Session.data?.entries)
+fun FolderPicker(selected: String, onSelect: (String) -> Unit, newFolders: MutableList<Entry>? = null) {
+    // [newFolders]: folders created from inside the editor; they are stored by the caller together with the entry.
+    val folders = (Folders.list(Session.data?.entries) + (newFolders ?: emptyList())).distinctBy { it.id }
     var open by remember { mutableStateOf(false) }
+    var creating by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
     val label = Folders.nameOf(selected, folders) ?: "بدون فولدر"
     OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text("📂 الفولدر: $label") }
     if (open) {
@@ -53,10 +56,26 @@ fun FolderPicker(selected: String, onSelect: (String) -> Unit) {
                 Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                     TextButton(onClick = { onSelect("other"); open = false }) { Text("بدون فولدر") }
                     for (f in folders) TextButton(onClick = { onSelect(Folders.catOf(f)); open = false }) { Text("📂 " + f.title) }
-                    if (folders.isEmpty()) Text("مفيش فولدرات. اعمل واحد من شاشة الخزنة (زرار الفولدرات).", style = MaterialTheme.typography.bodySmall)
+                    if (newFolders != null) TextButton(onClick = { creating = true }) { Text("➕ فولدر جديد") }
+                    else if (folders.isEmpty()) Text("مفيش فولدرات. اعمل واحد من شاشة الخزنة (زرار الفولدرات).", style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = { TextButton(onClick = { open = false }) { Text("إغلاق") } },
+        )
+    }
+    if (creating && newFolders != null) {
+        AlertDialog(
+            onDismissRequest = { creating = false },
+            title = { Text("فولدر جديد") },
+            text = { OutlinedTextField(value = newName, onValueChange = { newName = it }, singleLine = true, label = { Text("اسم الفولدر") }) },
+            confirmButton = {
+                TextButton(enabled = newName.isNotBlank(), onClick = {
+                    val f = Entry(id = java.util.UUID.randomUUID().toString(), title = newName.trim(), username = "", password = "",
+                        updatedAt = System.currentTimeMillis(), type = Folders.TYPE)
+                    newFolders.add(f); onSelect(Folders.catOf(f)); newName = ""; creating = false; open = false
+                }) { Text("إنشاء") }
+            },
+            dismissButton = { TextButton(onClick = { creating = false }) { Text("إلغاء") } },
         )
     }
 }
