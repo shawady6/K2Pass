@@ -62,6 +62,7 @@
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
             android:screenOrientation="fullUser"
-            tools:replace="android:screenOrientation" />
+            android:theme="@style/Theme.K2Pass.Scanner"
+            tools:replace="android:screenOrientation,android:theme" />
     </application>
 </manifest>
